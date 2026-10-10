@@ -111,7 +111,7 @@ def test_executor_preserves_cancellation_requested_during_action(tmp_path):
 
     def run():
         result_holder["result"] = runtime.executor.execute(
-            task["task_id"], [{"action": "record_observation", "text": "x"}])
+            task["task_id"], [{"action": "record_observation", "text": "x"}], isolated_actions=False)
 
     worker = threading.Thread(target=run)
     worker.start()
