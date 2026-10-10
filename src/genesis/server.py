@@ -36,6 +36,10 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(200); self.send_header("Content-Type","text/html; charset=utf-8"); self.send_header("Content-Length",str(len(body))); self.send_header("Cache-Control","no-store"); self.send_header("Content-Security-Policy","default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:"); self.send_header("X-Content-Type-Options","nosniff"); self.end_headers(); self.wfile.write(body); return
         if path=="/api/status": return self._json(200,self.server.runtime.status())
         if path=="/api/tasks": return self._json(200,self.server.runtime.tasks.list(200))
+        if path=="/api/learning/status": return self._json(200,self.server.runtime.learning.status())
+        if path=="/api/learning/rules":
+            rules=self.server.runtime.learning.rules()
+            return self._json(200,[{"rule_id":r.rule_id,"feature":r.feature,"outcome":r.outcome,"support":r.support,"counterexamples":r.counterexamples,"precision":r.precision,"evidence_ids":r.evidence_ids,"counterexample_ids":r.counterexample_ids} for r in rules])
         if path=="/api/knowledge":
             query=parse_qs(urlparse(self.path).query).get("q",[""])[0]
             try: return self._json(200,self.server.runtime.models.search_knowledge(query))
@@ -51,7 +55,7 @@ class Handler(BaseHTTPRequestHandler):
             if path=="/api/tasks":
                 if not isinstance(body.get("objective"),str): raise ValueError("objective must be a string")
                 return self._json(201,self.server.runtime.tasks.create(body["objective"]))
-            prefix="/api/tasks/"; suffix="/checkpoint"
+            run_prefix="/api/tasks/"; run_suffix="/run"\n            if path.startswith(run_prefix) and path.endswith(run_suffix):\n                task_id=unquote(path[len(run_prefix):-len(run_suffix)].rstrip("/"))\n                plan=body.get("plan")\n                return self._json(200,self.server.runtime.executor.execute(task_id,plan,resume=bool(body.get("resume",True))))\n            prefix="/api/tasks/"; suffix="/checkpoint"
             if path.startswith(prefix) and path.endswith(suffix):
                 task_id=unquote(path[len(prefix):-len(suffix)].rstrip("/"))
                 status=body.get("status"); progress=body.get("progress"); data=body.get("data",{})
