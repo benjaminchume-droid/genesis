@@ -213,6 +213,7 @@ class EvaluationReport:
     majority_baseline: ModelMetrics
     exact_retrieval_baseline: ModelMetrics
     frequency_baseline: ModelMetrics
+    candidate_interpretations: tuple[tuple[str, tuple[CandidateInterpretation, ...]], ...]
     generalization_note: str
 
 
@@ -287,6 +288,9 @@ def evaluate(
         majority_baseline=_metrics(test, majority_predictions),
         exact_retrieval_baseline=_metrics(test, exact_predictions),
         frequency_baseline=_metrics(test, frequency_predictions),
+        candidate_interpretations=tuple(
+            (item.text, learner.interpretations(item.text)) for item in test
+        ),
         generalization_note=(
             "This measures label prediction from supplied feedback on held-out strings. "
             "It does not establish open-domain language understanding or autonomous concept discovery."
