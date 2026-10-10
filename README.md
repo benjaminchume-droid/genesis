@@ -35,7 +35,7 @@ The central research challenge is to discover whether general-purpose non-neural
 
 **Stage:** foundational architecture and research scaffold.
 
-The initial implementation is intentionally modest: a local SQLite observation store, a Unicode-aware surface segmenter, and frequency-based structural observations. These are instruments for experimentation, not an intelligent conversational agent. Semantic interpretation, intent inference, grounded concepts, response planning, web acquisition, and capability composition remain research milestones.
+The initial implementation is intentionally modest: a local SQLite observation store, a Unicode-aware surface segmenter, repeated-sequence discovery with context counts, and typed records for hypotheses, claims, procedures, and evaluation splits. These are research instruments, not an intelligent conversational agent. Semantic interpretation, intent inference, grounded concepts, response planning, web acquisition, and capability composition remain research milestones.
 
 ## Quick start
 
@@ -50,6 +50,8 @@ source .venv/bin/activate
 
 python -m pip install -e ".[dev]"
 genesis observe "The dog chased the cat."
+genesis observe "The dog chased the ball."
+genesis discover --min-length 2 --max-length 4
 genesis stats
 pytest
 ```
@@ -66,6 +68,11 @@ The CLI stores observations locally in `.genesis/genesis.sqlite3` unless `GENESI
 
 - `src/genesis/core/`: observation and persistence primitives.
 - `src/genesis/linguistics/`: surface-level text processing and structural statistics.
+- `src/genesis/structures/`: candidate repeated-sequence discovery with observed contexts.
+- `src/genesis/interpretation/`: explicit, uncertain interpretation-hypothesis records.
+- `src/genesis/knowledge/`: provenance-aware claim records, unverified by default.
+- `src/genesis/capabilities/`: declarative procedure specifications.
+- `src/genesis/evaluation/`: deterministic dataset splitting for experiments.
 - `tests/`: behavioral tests for implemented primitives.
 - `docs/ARCHITECTURE.md`: component boundaries and data flow.
 - `docs/ROADMAP.md`: staged implementation roadmap.
