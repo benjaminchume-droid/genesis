@@ -104,7 +104,7 @@ class TaskExecutor:
                        "subject", "predicate", "object_value", "object_concept", "context", "start", "target", "url", "title", "search_id", "document_id", "query"}:
                 if not isinstance(value, str):
                     raise ValueError(f"{action}.{key} must be a string")
-            elif key in {"min_length", "max_length", "min_occurrences", "limit", "max_depth", "max_paths"}:
+            elif key in {"min_length", "max_length", "min_occurrences", "limit", "max_depth", "max_paths", "max_excerpts"}:
                 if isinstance(value, bool) or not isinstance(value, int):
                     raise ValueError(f"{action}.{key} must be an integer")
             elif key in {"min_margin", "min_precision"}:
