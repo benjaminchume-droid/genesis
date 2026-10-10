@@ -65,7 +65,7 @@ class LearningContribution:
         if self.procedure is not None and not isinstance(self.procedure, dict):
             raise ValueError("procedure must be a JSON object")
         # Refuse obvious raw transcript-shaped payloads. This is a guardrail, not PII detection.
-        if re.search(r"(?im)^\\s*(user|assistant|system)\\s*:", self.statement):
+        if re.search(r"(?im)^\s*(user|assistant|system)\s*:", self.statement):
             raise ValueError("raw dialogue transcript format is not an eligible contribution")
 
     def to_dict(self) -> dict[str, Any]:
