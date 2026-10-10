@@ -57,7 +57,7 @@ pytest
 Alternatively, without installing the package:
 
 ```bash
-python -m genesis observe "The dog chased the cat."
+PYTHONPATH=src python -m genesis observe "The dog chased the cat."
 ```
 
 The CLI stores observations locally in `.genesis/genesis.sqlite3` unless `GENESIS_HOME` points elsewhere. Do not feed it private data unless you understand and accept that local storage behavior.
