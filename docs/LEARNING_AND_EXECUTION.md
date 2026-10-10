@@ -75,3 +75,14 @@ Start genesis-app and open http://127.0.0.1:8765. The interface allows adding ex
 7. Keep native Android client work deferred until the shared learning and execution contracts are stable.
 
 A release is not allowed to treat every locally induced rule as globally trusted knowledge. Collective contributions still require user review, provenance, validation, and a release-level acceptance process.
+
+
+## Concept graph, grouped evaluation, and execution limits
+
+The runtime now composes a persistent concept/relation graph through `src/genesis/learning/concepts.py`. Concepts and mentions preserve evidence IDs and sources. Relation assertions preserve subject, predicate, object, optional object concept, polarity, exclusivity, context, and timestamp. Contradictions are recorded only when an assertion explicitly marks the subject/predicate as exclusive. Bounded graph-path composition returns the provenance of every edge; a path is not proof or causal reasoning.
+
+The `learn-evaluate-grouped` CLI command uses `src/genesis/learning/evaluation.py` to split by a supplied group field and report abstention-aware metrics. All rows in a group stay together, and missing group metadata is rejected. The command trains in a temporary database and leaves the persistent learner unchanged. It cannot guarantee that a user-supplied group field correctly captures all source or paraphrase leakage.
+
+The executor validates each action against a registered schema, rejects unknown arguments, bounds the number of steps, checks cancellation between actions, and checks its deadline between actions. These are cooperative controls. A synchronous action already running is not forcibly interrupted, so do not treat the deadline as a hard action timeout. See `docs/CONCEPTS_AND_EVALUATION.md` for CLI examples and acceptance gates.
+
+Still incomplete: reliable automatic relation extraction from raw language, autonomous natural-language planning, independent representative benchmark results, and hard per-action timeouts using isolated workers. These are not represented as implemented.
