@@ -68,7 +68,9 @@ def _compile_template(template: str) -> re.Pattern[str]:
             used.add("object")
             result.append(f"(?P<{name}>.+?)")
         elif piece:
-            result.append(re.escape(piece).replace(" ", r"\s+"))
+        elif piece and piece.strip():
+            fixed_tokens = piece.split()
+            result.append(r"\\s*" + r"\\s+".join(re.escape(token) for token in fixed_tokens) + r"\\s*")
     result.append("\\s*$")
     return re.compile("".join(result), re.IGNORECASE)
 
