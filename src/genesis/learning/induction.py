@@ -82,6 +82,18 @@ class ExperienceLearningEngine:
                     learned_at TEXT NOT NULL,
                     UNIQUE(feature, outcome)
                 );
+                CREATE TABLE IF NOT EXISTS rule_revisions(
+                    run_id TEXT NOT NULL,
+                    feature TEXT NOT NULL,
+                    outcome TEXT NOT NULL,
+                    support INTEGER NOT NULL,
+                    counterexamples INTEGER NOT NULL,
+                    precision REAL NOT NULL,
+                    evidence_json TEXT NOT NULL,
+                    counterexamples_json TEXT NOT NULL,
+                    learned_at TEXT NOT NULL,
+                    PRIMARY KEY(run_id, feature, outcome)
+                );
                 CREATE TABLE IF NOT EXISTS learner_runs(
                     run_id TEXT PRIMARY KEY,
                     min_support INTEGER NOT NULL,
@@ -158,11 +170,15 @@ class ExperienceLearningEngine:
                 candidates.append(InducedRule(str(uuid4()), feature, outcome, support, len(counter), precision, evidence, counter))
         candidates.sort(key=lambda r: (-r.precision, -r.support, r.feature, r.outcome))
         now = datetime.now(timezone.utc).isoformat()
+        run_id = str(uuid4())
         with self._connect() as db:
             db.execute("DELETE FROM induced_rules")
             for rule in candidates:
-                db.execute("INSERT INTO induced_rules VALUES(?,?,?,?,?,?,?,?,?)", (rule.rule_id,rule.feature,rule.outcome,rule.support,rule.counterexamples,rule.precision,json.dumps(rule.evidence_ids),json.dumps(rule.counterexample_ids),now))
-            db.execute("INSERT INTO learner_runs VALUES(?,?,?,?,?,?)", (str(uuid4()),min_support,min_precision,len(items),len(candidates),now))
+                evidence_json = json.dumps(rule.evidence_ids)
+                counterexamples_json = json.dumps(rule.counterexample_ids)
+                db.execute("INSERT INTO induced_rules VALUES(?,?,?,?,?,?,?,?,?)", (rule.rule_id,rule.feature,rule.outcome,rule.support,rule.counterexamples,rule.precision,evidence_json,counterexamples_json,now))
+                db.execute("INSERT INTO rule_revisions VALUES(?,?,?,?,?,?,?,?,?)", (run_id,rule.feature,rule.outcome,rule.support,rule.counterexamples,rule.precision,evidence_json,counterexamples_json,now))
+            db.execute("INSERT INTO learner_runs VALUES(?,?,?,?,?,?)", (run_id,min_support,min_precision,len(items),len(candidates),now))
         return {"experience_count": len(items), "rule_count": len(candidates), "min_support": min_support, "min_precision": min_precision, "rules": [asdict(rule) for rule in candidates], "limitation": "Rules are generic lexical/adjacency associations supported by labelled examples. They are not proof of causation or open-domain semantic understanding."}
 
     def rules(self) -> tuple[InducedRule, ...]:
@@ -204,6 +220,14 @@ class ExperienceLearningEngine:
             covered += int(not prediction["abstained"])
             results.append({"text": row["text"], "expected": expected, "prediction": prediction["outcome"], "correct": hit, "abstained": prediction["abstained"]})
         return {"examples": len(rows), "accuracy_including_abstentions": correct / len(rows), "coverage": covered / len(rows), "results": results, "limitation": "Evaluation is only meaningful when the dataset is independently held out and representative of intended use."}
+
+    def history(self, limit: int = 100) -> tuple[dict, ...]:
+        """Return versioned rule snapshots so counterexample-driven changes remain auditable."""
+        if not 1 <= limit <= 1000:
+            raise ValueError("limit must be 1..1000")
+        with self._connect() as db:
+            rows = db.execute("SELECT * FROM rule_revisions ORDER BY learned_at DESC, run_id DESC LIMIT ?", (limit,)).fetchall()
+        return tuple({"run_id": row["run_id"], "feature": row["feature"], "outcome": row["outcome"], "support": row["support"], "counterexamples": row["counterexamples"], "precision": row["precision"], "evidence_ids": json.loads(row["evidence_json"]), "counterexample_ids": json.loads(row["counterexamples_json"]), "learned_at": row["learned_at"]} for row in rows)
 
     def status(self) -> dict:
         with self._connect() as db:
