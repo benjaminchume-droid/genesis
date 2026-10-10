@@ -135,10 +135,10 @@ def main(argv=None):
             label_counts = Counter(row["label"] for row in split["train"])
             majority_label = sorted(label_counts, key=lambda label: (-label_counts[label], label))[0]
             majority_predictions = [majority_label] * len(split["test"])
-            train_tokens = [(row["label"], set(re.findall(r"[^\\W_]+", row["text"].casefold(), flags=re.UNICODE))) for row in split["train"]]
+            train_tokens = [(row["label"], set(re.findall(r"[^\W_]+", row["text"].casefold(), flags=re.UNICODE))) for row in split["train"]]
             lexical_predictions = []
             for test_row in split["test"]:
-                tokens = set(re.findall(r"[^\\W_]+", test_row["text"].casefold(), flags=re.UNICODE))
+                tokens = set(re.findall(r"[^\W_]+", test_row["text"].casefold(), flags=re.UNICODE))
                 scored = []
                 for label, reference in train_tokens:
                     union = tokens | reference
