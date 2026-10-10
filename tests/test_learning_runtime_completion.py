@@ -124,3 +124,25 @@ def test_executor_preserves_cancellation_requested_during_action(tmp_path):
     assert not worker.is_alive()
     assert result_holder["result"]["cancelled"] is True
     assert runtime.tasks.get(task["task_id"])["status"] == "cancelled"
+
+
+def test_grouped_evaluation_cli_reports_baselines_without_persisting_training(tmp_path, capsys):
+    from genesis.workspace_cli import main
+
+    dataset = tmp_path / "grouped.jsonl"
+    rows = [
+        {"text": "dax red", "label": "warm", "family": "source-a"},
+        {"text": "dax bright", "label": "warm", "family": "source-b"},
+        {"text": "wug blue", "label": "cool", "family": "source-c"},
+        {"text": "wug dim", "label": "cool", "family": "source-d"},
+    ]
+    dataset.write_text("\n".join(json.dumps(row) for row in rows), encoding="utf-8")
+    home = tmp_path / "persistent-home"
+    assert main(["--home", str(home), "learn-evaluate-grouped", str(dataset),
+                 "--group-field", "family", "--train-fraction", "0.5", "--min-support", "1"]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["split"]["train_groups"]
+    assert result["split"]["test_groups"]
+    assert set(result["baselines"]) == {"majority_class", "lexical_jaccard_1nn"}
+    assert result["test_metrics"]["examples"] == 2
+    assert not (home / "learning.sqlite3").exists()
