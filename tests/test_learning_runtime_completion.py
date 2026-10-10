@@ -51,6 +51,8 @@ def test_executor_enforces_action_schemas_and_budgets(tmp_path):
         runtime.executor.execute(task["task_id"], [{"action": "record_observation", "text": "x"}], max_steps=0)
     with pytest.raises(ValueError, match="deadline_seconds"):
         runtime.executor.execute(task["task_id"], [{"action": "record_observation", "text": "x"}], deadline_seconds=9999)
+    with pytest.raises(ValueError, match="action_timeout_seconds"):
+        runtime.executor.execute(task["task_id"], [{"action": "record_observation", "text": "x"}], action_timeout_seconds=9999)
 
 
 def test_executor_can_create_and_compose_evidence_grounded_relations(tmp_path):
