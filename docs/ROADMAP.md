@@ -31,9 +31,17 @@ Exit criteria:
 - Tests cover empty input, Unicode, long input, and corrupted-state handling.
 
 ## Stage 2: Surface structure discovery
-Deliverables:
-- Segmentation alternatives and punctuation boundaries.
-- Repeated sequence and distributional pattern candidates.
+Status: initial repeated-sequence candidate discovery implemented; evaluation protocol and counterexample tracking remain incomplete.
+
+Implemented:
+- Unicode-aware surface segmentation and punctuation boundaries.
+- Repeated contiguous token-sequence candidates.
+- Left and right surface-context counts.
+- Observation indices recording where candidates occurred.
+- CLI output for inspecting candidates.
+
+Remaining deliverables:
+- Segmentation alternatives and explicit candidate comparison.
 - Counterexample tracking and held-out evaluation.
 - Baselines for memorization and frequency-only systems.
 
@@ -41,6 +49,7 @@ Exit criteria:
 - Results reproduce from a recorded dataset and configuration.
 - The system labels patterns as candidates rather than meanings.
 - Performance is measured on unseen examples.
+- The system is not credited with semantics from surface statistics alone.
 
 ## Stage 3: Linguistic interpretation research
 Deliverables:
