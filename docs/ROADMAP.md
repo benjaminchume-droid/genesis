@@ -32,25 +32,30 @@ Exit criteria:
 - Storage errors are visible and recoverable.
 - Tests cover empty input, Unicode, long input, and corrupted-state handling.
 
-## Stage 2: Surface structure discovery
-Status: initial repeated-sequence candidate discovery implemented; evaluation protocol and counterexample tracking remain incomplete.
+## Stage 2: Surface structure discovery and first evaluation
+Status: repeated-sequence discovery and a first held-out grounded-association experiment are implemented. Broader structural interpretation, counterexample-driven revision, and independent benchmark data remain incomplete.
 
 Implemented:
 - Unicode-aware surface segmentation and punctuation boundaries.
-- Repeated contiguous token-sequence candidates.
-- Left and right surface-context counts.
+- Repeated contiguous token-sequence candidates with left/right surface contexts.
 - Observation indices recording where candidates occurred.
-- CLI output for inspecting candidates.
+- A non-neural token/outcome association learner trained from supplied feedback.
+- Held-out evaluation against majority, exact-example retrieval, and token-frequency baselines.
+- Rejection of exact utterance overlap between training and held-out sets.
+- CLI command `genesis learn-evaluate` and focused tests.
+- Experiment protocol and limitations in `docs/GROUNDED_LEARNING.md`.
 
 Remaining deliverables:
-- Segmentation alternatives and explicit candidate comparison.
-- Counterexample tracking and held-out evaluation.
-- Baselines for memorization and frequency-only systems.
+- Counterexample tracking that revises or retires hypotheses.
+- Dataset provenance and independently authored evaluation sets.
+- Robust paraphrase-family/source grouping to prevent less obvious leakage.
+- Ambiguity, negation, word order, context shifts, and adversarial tests.
+- Evaluation on non-toy data not constructed to mirror the learner.
 
 Exit criteria:
 - Results reproduce from a recorded dataset and configuration.
+- Held-out performance is compared to stated baselines.
 - The system labels patterns as candidates rather than meanings.
-- Performance is measured on unseen examples.
 - The system is not credited with semantics from surface statistics alone.
 
 ## Stage 3: Linguistic interpretation research
