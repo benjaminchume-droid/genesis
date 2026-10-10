@@ -29,6 +29,15 @@ class GenesisMCPServer:
 
     def tools(self) -> list[dict]:
         return [
+            {"name":"runtime_status","description":"Inspect Genesis's local learning, concept, research, task, and model state.","inputSchema":{"type":"object","properties":{},"additionalProperties":False}},
+            {"name":"record_observation","description":"Persist an observation with source provenance; observations are not automatically facts.","inputSchema":{"type":"object","properties":{"text":{"type":"string","minLength":1,"maxLength":10000},"source":{"type":"string","default":"mcp"}},"required":["text"],"additionalProperties":False}},
+            {"name":"record_learning_experience","description":"Store an explicitly labelled text/outcome example and relearn symbolic associations. Only use a label when supplied or justified by the user/source.","inputSchema":{"type":"object","properties":{"text":{"type":"string","minLength":1,"maxLength":10000},"outcome":{"type":"string","minLength":1,"maxLength":500},"source":{"type":"string","default":"mcp-feedback"}},"required":["text","outcome"],"additionalProperties":False}},
+            {"name":"fit_learning_rules","description":"Recompute the symbolic learner's rules from explicitly labelled experiences.","inputSchema":{"type":"object","properties":{"min_support":{"type":"integer","minimum":1,"maximum":1000,"default":2},"min_precision":{"type":"number","minimum":0,"maximum":1,"default":0.75}},"additionalProperties":False}},
+            {"name":"predict_from_experience","description":"Predict a labelled outcome from learned symbolic rules; inspect evidence and abstention rather than treating the result as semantic certainty.","inputSchema":{"type":"object","properties":{"text":{"type":"string","minLength":1,"maxLength":10000},"min_margin":{"type":"number","minimum":0,"maximum":1,"default":0.15}},"required":["text"],"additionalProperties":False}},
+            {"name":"search_knowledge","description":"Search installed local knowledge releases; returns matching statements and provenance metadata.","inputSchema":{"type":"object","properties":{"query":{"type":"string","minLength":1,"maxLength":1000},"limit":{"type":"integer","minimum":1,"maximum":100,"default":20}},"required":["query"],"additionalProperties":False}},
+            {"name":"inspect_concepts","description":"Inspect learned/explicit concept records, optionally filtered by label text.","inputSchema":{"type":"object","properties":{"query":{"type":"string","default":""}},"additionalProperties":False}},
+            {"name":"search_relations","description":"Inspect explicit evidence-backed relations in Genesis's local concept graph.","inputSchema":{"type":"object","properties":{"subject":{"type":"string"},"predicate":{"type":"string"}},"additionalProperties":False}},
+            {"name":"compose_relations","description":"Find bounded paths through explicit relations between two concept labels. Paths are associations, not proof.","inputSchema":{"type":"object","properties":{"start":{"type":"string","minLength":1},"target":{"type":"string","minLength":1},"max_depth":{"type":"integer","minimum":1,"maximum":8,"default":3},"max_paths":{"type":"integer","minimum":1,"maximum":100,"default":20}},"required":["start","target"],"additionalProperties":False}},
             {"name":"search_web","description":"Search the public web without a paid API key. Returns source URLs/snippets; results are leads, not facts.","inputSchema":{"type":"object","properties":{"query":{"type":"string","minLength":1,"maxLength":500},"limit":{"type":"integer","minimum":1,"maximum":20,"default":8}},"required":["query"],"additionalProperties":False}},
             {"name":"open_page","description":"Open and read a public HTML or text page in Genesis's text-first browser. Does not execute page JavaScript.","inputSchema":{"type":"object","properties":{"url":{"type":"string","minLength":1}},"required":["url"],"additionalProperties":False}},
             {"name":"inspect_page","description":"Read a section of a page opened in this MCP session.","inputSchema":{"type":"object","properties":{"page_id":{"type":"string"},"offset":{"type":"integer","minimum":0,"default":0},"limit":{"type":"integer","minimum":1,"maximum":12000,"default":8000}},"required":["page_id"],"additionalProperties":False}},
@@ -43,6 +52,17 @@ class GenesisMCPServer:
     def call_tool(self, name: str, args: dict) -> dict:
         if not isinstance(args, dict):
             raise ValueError("tool arguments must be an object")
+        if name == "runtime_status": return self.runtime.status()
+        if name == "record_observation": return self.runtime.observe(args["text"], args.get("source", "mcp"))
+        if name == "record_learning_experience":
+            item = self.runtime.learning.add_experience(args["text"], args["outcome"], source=args.get("source", "mcp-feedback"))
+            return {"experience_id": item.experience_id, "outcome": item.outcome, "observed_at": item.observed_at, "learner_status": self.runtime.learning.status()}
+        if name == "fit_learning_rules": return self.runtime.learning.learn(min_support=args.get("min_support", 2), min_precision=args.get("min_precision", 0.75))
+        if name == "predict_from_experience": return self.runtime.learning.predict(args["text"], min_margin=args.get("min_margin", 0.15))
+        if name == "search_knowledge": return self.runtime.models.search_knowledge(args["query"], limit=args.get("limit", 20))
+        if name == "inspect_concepts": return {"status": self.runtime.concepts.status(), "concepts": self.runtime.concepts.concepts(args.get("query", ""))}
+        if name == "search_relations": return self.runtime.concepts.relations(subject=args.get("subject"), predicate=args.get("predicate"))
+        if name == "compose_relations": return self.runtime.concepts.compose(args["start"], args["target"], max_depth=args.get("max_depth", 3), max_paths=args.get("max_paths", 20))
         if name == "search_web": return self.browser.search(args["query"], args.get("limit", 8))
         if name == "open_page": return self.browser.open_page(args["url"])
         if name == "inspect_page": return self.browser.inspect_page(args["page_id"], offset=args.get("offset", 0), limit=args.get("limit", 8000))
