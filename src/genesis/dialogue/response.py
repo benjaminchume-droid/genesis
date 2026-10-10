@@ -35,7 +35,8 @@ class GroundedResponseEngine:
         self.runtime = runtime
 
     def respond(self, query: str, *, search_web: bool = False, ingest_sources: bool = False,
-                limit: int = 5, max_excerpts: int = 4) -> dict[str, Any]:
+                limit: int = 5, max_excerpts: int = 4, mode: str = "balanced",
+                depth: int = 50, context: list[dict[str, str]] | None = None) -> dict[str, Any]:
         if not isinstance(query, str) or not query.strip() or len(query) > 2000:
             raise ValueError("query must contain 1..2000 characters")
         if not isinstance(search_web, bool) or not isinstance(ingest_sources, bool):
@@ -46,11 +47,84 @@ class GroundedResponseEngine:
             raise ValueError("limit must be 1..10")
         if isinstance(max_excerpts, bool) or not isinstance(max_excerpts, int) or not 1 <= max_excerpts <= 8:
             raise ValueError("max_excerpts must be 1..8")
+        if mode not in {"mini", "balanced", "thinking"}:
+            raise ValueError("mode must be mini, balanced, or thinking")
+        if isinstance(depth, bool) or not isinstance(depth, int) or not 0 <= depth <= 100:
+            raise ValueError("depth must be an integer from 0 to 100")
+        if context is None:
+            context = []
+        if not isinstance(context, list) or len(context) > 12:
+            raise ValueError("context must be a list of at most 12 message objects")
+        clean_context: list[dict[str, str]] = []
+        for turn in context:
+            if not isinstance(turn, dict) or turn.get("role") not in {"user", "assistant"} or not isinstance(turn.get("content"), str):
+                raise ValueError("each context item must have user/assistant role and string content")
+            clean_context.append({"role": turn["role"], "content": turn["content"][:3000]})
+
+        # Modes are real runtime policies over the same available engine, not separate
+        # trained models. Mini caps work; Thinking may use the adaptive browser.
+        if mode == "mini":
+            limit = min(limit, 3)
+            max_excerpts = min(max_excerpts, 2)
+        elif mode == "balanced":
+            limit = min(limit, 6)
+            max_excerpts = min(max_excerpts, 6)
+        else:
+            limit = min(limit, 8)
+            max_excerpts = min(max_excerpts, 8)
+
+        interpretation = understand(query)
+        retrieval_query = query
+        context_used = False
+        if interpretation.get("requires_context_resolution") and clean_context:
+            recent_context = " ".join(turn["content"] for turn in clean_context[-4:])
+            retrieval_query = (query + " " + recent_context)[-6000:]
+            context_used = True
 
         search_result = None
+        adaptive_research = None
         acquired: list[dict[str, Any]] = []
         fetch_errors: list[dict[str, str]] = []
-        if search_web:
+        if search_web and mode == "thinking":
+            rounds = 1 if depth < 35 else (2 if depth < 75 else 3)
+            adaptive_research = self.runtime.research_controller.research(
+                query, max_sources=min(12, limit), max_rounds=rounds)
+            search_ids = adaptive_research.get("search_ids", [])
+            search_result = {
+                "search_id": search_ids[0] if search_ids else None,
+                "query": query,
+                "count": adaptive_research.get("sources_considered", 0),
+                "providers": ["genesis_adaptive_browser"],
+                "results": [{
+                    "title": source.get("title", source.get("url", "")),
+                    "url": source.get("url", ""),
+                    "snippet": source.get("excerpt", ""),
+                    "provider": "genesis_adaptive_browser",
+                } for source in adaptive_research.get("sources", [])],
+                "errors": adaptive_research.get("errors", []),
+            }
+            fetch_errors.extend(adaptive_research.get("errors", []))
+            for source in adaptive_research.get("sources", []):
+                content = " ".join([
+                    source.get("title", ""),
+                    " ".join(source.get("headings", [])),
+                    source.get("excerpt", ""),
+                ]).strip()
+                acquired.append({
+                    "document_id": source.get("page_id"), "url": source.get("url", ""),
+                    "title": source.get("title", source.get("url", "")),
+                    "content": content, "content_type": "adaptive-browser-page",
+                    "status": "retrieved", "content_sha256": source.get("content_sha256", ""),
+                })
+                if ingest_sources and source.get("url"):
+                    try:
+                        stored = self.runtime.research.fetch(source["url"], title=source.get("title", ""), search_id=search_result["search_id"])
+                        ingested = self.runtime.research.ingest(stored["document_id"])
+                        acquired[-1]["document_id"] = stored["document_id"]
+                        acquired[-1]["ingestion"] = ingested
+                    except (ValueError, OSError) as exc:
+                        fetch_errors.append({"url": source["url"], "error": str(exc)[:300]})
+        elif search_web:
             search_result = self.runtime.research.search(query, limit)
             for result in search_result["results"][:limit]:
                 try:
@@ -85,7 +159,7 @@ class GroundedResponseEngine:
             documents.append(document)
             seen_urls.add(metadata["url"])
 
-        query_tokens = set(token for token in _tokens(query) if token not in _STOPWORDS)
+        query_tokens = set(token for token in _tokens(retrieval_query) if token not in _STOPWORDS)
         if not query_tokens:
             query_tokens = set(_tokens(query))
         corpus_tokens = [_tokens(doc.get("title", "") + " " + doc.get("content", "")) for doc in documents]
@@ -172,7 +246,11 @@ class GroundedResponseEngine:
 
         return {
             "query": query, "answer": answer, "outcome": outcome,
-            "understanding": understand(query),
+            "understanding": interpretation,
+            "mode": mode,
+            "depth": depth,
+            "context_used_for_retrieval": context_used,
+            "adaptive_research": adaptive_research,
             "evidence": selected[:max_excerpts],
             "sources": [{"index": i, "title": item["title"], "url": item["url"],
                          "evidence_kind": item["evidence_kind"], "score": item["score"]}
