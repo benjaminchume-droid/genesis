@@ -1,4 +1,4 @@
-""""Command-line interface for the Genesis research scaffold."""
+"""Command-line interface for the Genesis research scaffold."""
 
 from __future__ import annotations
 
