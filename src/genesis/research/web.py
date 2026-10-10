@@ -146,6 +146,15 @@ class WebResearch:
                 );
                 CREATE INDEX IF NOT EXISTS idx_documents_hash ON documents(content_sha256);
                 CREATE INDEX IF NOT EXISTS idx_documents_fetched ON documents(fetched_at);
+                CREATE TABLE IF NOT EXISTS candidate_claims(
+                    claim_id TEXT PRIMARY KEY, document_id TEXT NOT NULL REFERENCES documents(document_id),
+                    statement TEXT NOT NULL, normalized_statement TEXT NOT NULL, source_url TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','reviewed_supported','rejected')),
+                    review_note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, reviewed_at TEXT,
+                    UNIQUE(document_id, normalized_statement)
+                );
+                CREATE INDEX IF NOT EXISTS idx_candidate_claims_status ON candidate_claims(status, created_at);
+                CREATE INDEX IF NOT EXISTS idx_candidate_claims_normalized ON candidate_claims(normalized_statement);
             """)
     def _connect(self):
         db = sqlite3.connect(self.path, timeout=10)
@@ -274,13 +283,71 @@ class WebResearch:
         # Web text is stored as a sourced observation, not silently converted to a true claim or training label.
         observation = self.runtime.observe(row["content"], source="web:" + row["url"][:180])
         candidate_relations = self.runtime.relation_learner.extract(row["content"][:20_000])
+        candidate_claims = self._extract_candidate_sentences(row["content"])
         with self._connect() as db:
             db.execute("UPDATE documents SET observation_id=?,status='ingested' WHERE document_id=?",
                        (observation["observation_id"], document_id))
+            for statement in candidate_claims:
+                normalized = " ".join(statement.casefold().split())
+                import uuid
+                db.execute("""INSERT OR IGNORE INTO candidate_claims
+                    (claim_id,document_id,statement,normalized_statement,source_url,status,created_at)
+                    VALUES(?,?,?,?,?,'pending',?)""",
+                    (str(uuid.uuid4()), document_id, statement, normalized, row["url"], _now()))
         return {"document_id": document_id, "url": row["url"], "title": row["title"],
                 "observation": observation, "candidate_relations": candidate_relations,
+                "candidate_claim_count": len(candidate_claims),
                 "status": "ingested_for_learning",
-                "policy": "Evidence stored; extracted relations are candidates only and require verification before graph assertion."}
+                "policy": "Evidence stored; sentence and relation candidates remain unverified and require review before graph assertion."}
+
+    @staticmethod
+    def _extract_candidate_sentences(content: str, limit: int = 80) -> list[str]:
+        # Generic sentence segmentation only. This proposes review candidates, not truth.
+        pieces = re.split(r"(?<=[.!?])\\s+|[\\r\\n]+", content)
+        candidates, seen = [], set()
+        for piece in pieces:
+            statement = " ".join(piece.strip(" \\t•*-–—").split())
+            if not 30 <= len(statement) <= 1200:
+                continue
+            normalized = statement.casefold()
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            candidates.append(statement)
+            if len(candidates) >= limit:
+                break
+        return candidates
+
+    def list_claims(self, status: str = "pending", limit: int = 100) -> list[dict]:
+        if status not in {"pending", "reviewed_supported", "rejected", "all"}:
+            raise ValueError("status must be pending, reviewed_supported, rejected or all")
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 500:
+            raise ValueError("limit must be 1..500")
+        with self._connect() as db:
+            if status == "all":
+                rows = db.execute("""SELECT c.*, (SELECT COUNT(DISTINCT other.source_url)
+                    FROM candidate_claims other WHERE other.normalized_statement=c.normalized_statement) AS supporting_sources
+                    FROM candidate_claims c ORDER BY c.created_at DESC LIMIT ?""", (limit,)).fetchall()
+            else:
+                rows = db.execute("""SELECT c.*, (SELECT COUNT(DISTINCT other.source_url)
+                    FROM candidate_claims other WHERE other.normalized_statement=c.normalized_statement) AS supporting_sources
+                    FROM candidate_claims c WHERE c.status=? ORDER BY c.created_at DESC LIMIT ?""",
+                    (status, limit)).fetchall()
+        return [dict(row) for row in rows]
+
+    def review_claim(self, claim_id: str, status: str, note: str = "") -> dict:
+        if status not in {"reviewed_supported", "rejected"}:
+            raise ValueError("review status must be reviewed_supported or rejected")
+        if not isinstance(claim_id, str) or not claim_id.strip():
+            raise ValueError("claim_id must be a non-empty string")
+        if not isinstance(note, str) or len(note) > 5000:
+            raise ValueError("review note must be a string of at most 5000 characters")
+        with self._connect() as db:
+            cursor = db.execute("UPDATE candidate_claims SET status=?,review_note=?,reviewed_at=? WHERE claim_id=?",
+                                (status, note.strip(), _now(), claim_id))
+            if cursor.rowcount == 0:
+                raise KeyError(f"unknown candidate claim: {claim_id}")
+        return next(item for item in self.list_claims("all", 500) if item["claim_id"] == claim_id)
 
     def status(self) -> dict:
         with self._connect() as db:
