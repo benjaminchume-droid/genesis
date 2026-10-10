@@ -69,15 +69,20 @@ def _public_http_url(value: str) -> str:
     return urlunparse((parsed.scheme, parsed.netloc, parsed.path or "/", parsed.params, parsed.query, ""))
 
 
-class _NoRedirect(HTTPRedirectHandler):
+class _SafeRedirect(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
+        # Re-validate every redirect target before following it to prevent SSRF via redirects.
+        try:
+            _public_http_url(newurl)
+        except ValueError:
+            return None
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
 def _http_get(url: str, *, max_bytes: int = MAX_PAGE_BYTES) -> tuple[bytes, str, str]:
     url = _public_http_url(url)
     request = Request(url, headers={"User-Agent": USER_AGENT, "Accept": "text/html,application/json;q=0.9,*/*;q=0.2"})
-    opener = build_opener(_NoRedirect)
+    opener = build_opener(_SafeRedirect)
     try:
         with opener.open(request, timeout=TIMEOUT_SECONDS) as response:
             content_type = response.headers.get("Content-Type", "")
