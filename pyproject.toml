@@ -19,6 +19,7 @@ dev = ["pytest>=8.0"]
 genesis = "genesis.cli:main"
 genesis-workspace = "genesis.workspace_cli:main"
 genesis-app = "genesis.server:main"
+genesis-mcp = "genesis.mcp_server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
