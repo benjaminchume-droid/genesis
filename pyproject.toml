@@ -18,9 +18,13 @@ dev = ["pytest>=8.0"]
 [project.scripts]
 genesis = "genesis.cli:main"
 genesis-workspace = "genesis.workspace_cli:main"
+genesis-app = "genesis.server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+genesis = ["web/*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
