@@ -141,3 +141,25 @@ def test_local_api_exposes_research_status_and_search(tmp_path):
         server.shutdown()
         server.server_close()
         thread.join(timeout=2)
+
+def test_ingestion_creates_unverified_claim_candidates_and_review_is_explicit(tmp_path, monkeypatch):
+    _public_dns(monkeypatch)
+    runtime = GenesisRuntime(tmp_path / "home")
+    body = ("The research team published a detailed report about the findings. "
+            "The report explains that the system records evidence and source provenance. "
+            "Independent review is required before a candidate becomes a supported claim.")
+    html_bytes = ("<html><body><main><p>" + body + "</p></main></body></html>").encode()
+    monkeypatch.setattr("genesis.research.web._http_get", lambda url, max_bytes=2_000_000: (html_bytes, "text/html; charset=utf-8", "utf-8"))
+    document = runtime.research.fetch("https://example.com/research")
+    ingested = runtime.research.ingest(document["document_id"])
+    assert ingested["candidate_claim_count"] >= 2
+    claims = runtime.research.list_claims("pending")
+    assert claims
+    claim = claims[0]
+    assert claim["status"] == "pending"
+    assert claim["source_url"] == "https://example.com/research"
+    assert claim["supporting_sources"] == 1
+    reviewed = runtime.research.review_claim(claim["claim_id"], "reviewed_supported", "Manually reviewed")
+    assert reviewed["status"] == "reviewed_supported"
+    assert reviewed["review_note"] == "Manually reviewed"
+    assert runtime.research.list_claims("pending") != [reviewed]
