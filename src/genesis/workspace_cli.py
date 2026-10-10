@@ -26,6 +26,7 @@ def parser():
     a=sub.add_parser("model-install"); a.add_argument("package"); a.add_argument("--no-activate",action="store_true")
     a=sub.add_parser("model-activate"); a.add_argument("version")
     sub.add_parser("model-list")
+    a=sub.add_parser("knowledge-search"); a.add_argument("query"); a.add_argument("--limit",type=int,default=20)
     return p
 
 def main(argv=None):
@@ -53,6 +54,7 @@ def main(argv=None):
     elif args.command=="model-install": result=runtime.models.install(args.package,activate=not args.no_activate)
     elif args.command=="model-activate": result=runtime.models.activate(args.version)
     elif args.command=="model-list": result={"active":runtime.models.active(),"versions":runtime.models.list_versions()}
+    elif args.command=="knowledge-search": result=runtime.models.search_knowledge(args.query,args.limit)
     else: return 2
     print(json.dumps(result,ensure_ascii=False,indent=2,default=str)); return 0
 
