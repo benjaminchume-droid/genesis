@@ -76,7 +76,7 @@ Remaining:
 - Independently authored grouped evaluation datasets and robust leakage prevention.
 - Relation-frame induction from explicitly annotated examples is implemented as a candidate generator; broader concept induction from multiple evidence types, contradiction resolution, and transfer tests beyond lexical feature associations remain.
 - Natural-language objective-to-plan synthesis with uncertainty and clarification.
-- Cancellation, execution budgets, timeouts and stronger action schemas.
+- Execution budgets, per-action schemas, isolated hard timeouts, and cancellation are implemented; cross-platform worker stress tests and transactional recovery remain.
 - Research adapters with provenance and verification.
 
 Exit criteria:
