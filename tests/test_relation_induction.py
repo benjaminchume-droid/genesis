@@ -9,7 +9,7 @@ from genesis.learning.relation_induction import RelationFrameLearner
 
 def test_relation_frames_induce_and_extract_new_entity_names(tmp_path):
     learner = RelationFrameLearner(tmp_path / "relations.sqlite3")
-    learner.add_example("Ada works at Orubus", "Ada", "works_at", "Orubus", evidence_id="e1", source="s1")
+    learner.add_example("Ada works at Orubus", "Ada", "works_at", "Orubus", evidence_id="e,1", source="s1")
     learner.add_example("Mira works at Northstar", "Mira", "works_at", "Northstar", evidence_id="e2", source="s2")
     fit = learner.fit(min_support=2)
     assert fit["template_count"] == 1
@@ -19,7 +19,7 @@ def test_relation_frames_induce_and_extract_new_entity_names(tmp_path):
     assert candidate["subject"] == "Lina"
     assert candidate["predicate"] == "works_at"
     assert candidate["object_value"] == "Aster"
-    assert candidate["evidence_ids"] == ["e1", "e2"]
+    assert candidate["evidence_ids"] == ["e,1", "e2"]
     assert candidate["source_type"] == "induced-frame-candidate"
 
 
