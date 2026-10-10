@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import tempfile
+from collections import Counter
 from pathlib import Path
 
 from genesis.learning.contribution import LearningContribution, export_contributions
@@ -128,10 +130,30 @@ def main(argv=None):
                 learner.add_experience(row["text"], row["label"], source="grouped-evaluation-train", experience_id=f"train-{i}", relearn=False)
             fit = learner.learn(min_support=args.min_support, min_precision=args.min_precision)
             predictions = [learner.predict(row["text"], min_margin=args.min_margin)["outcome"] for row in split["test"]]
-            metrics = classification_metrics([row["label"] for row in split["test"]], predictions)
+            expected = [row["label"] for row in split["test"]]
+            metrics = classification_metrics(expected, predictions)
+            label_counts = Counter(row["label"] for row in split["train"])
+            majority_label = sorted(label_counts, key=lambda label: (-label_counts[label], label))[0]
+            majority_predictions = [majority_label] * len(split["test"])
+            train_tokens = [(row["label"], set(re.findall(r"[^\\W_]+", row["text"].casefold(), flags=re.UNICODE))) for row in split["train"]]
+            lexical_predictions = []
+            for test_row in split["test"]:
+                tokens = set(re.findall(r"[^\\W_]+", test_row["text"].casefold(), flags=re.UNICODE))
+                scored = []
+                for label, reference in train_tokens:
+                    union = tokens | reference
+                    score = len(tokens & reference) / len(union) if union else 0.0
+                    scored.append((score, label))
+                best = max((score for score, _ in scored), default=0.0)
+                winners = {label for score, label in scored if score == best}
+                lexical_predictions.append(next(iter(winners)) if best > 0 and len(winners) == 1 else None)
             result = {"split": {k: v for k, v in split.items() if k not in {"train", "test"}},
                       "fit": {"training_examples": len(split["train"]), "rule_count": fit["rule_count"]},
                       "test_metrics": metrics,
+                      "baselines": {
+                          "majority_class": classification_metrics(expected, majority_predictions),
+                          "lexical_jaccard_1nn": classification_metrics(expected, lexical_predictions)
+                      },
                       "test_results": [{"text": row["text"], "group": row[args.group_field],
                                         "expected": row["label"], "prediction": pred}
                                        for row, pred in zip(split["test"], predictions)]}
