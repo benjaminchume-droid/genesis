@@ -145,4 +145,5 @@ def test_grouped_evaluation_cli_reports_baselines_without_persisting_training(tm
     assert result["split"]["test_groups"]
     assert set(result["baselines"]) == {"majority_class", "lexical_jaccard_1nn"}
     assert result["test_metrics"]["examples"] == 2
-    assert not (home / "learning.sqlite3").exists()
+    from genesis.learning.induction import ExperienceLearningEngine
+    assert ExperienceLearningEngine(home / "learning.sqlite3").status()["experience_count"] == 0
