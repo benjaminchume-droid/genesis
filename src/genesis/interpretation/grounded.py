@@ -1,20 +1,19 @@
 """A small, auditable non-neural learner for grounded word/outcome associations.
 
-This is a restricted experiment: an external environment supplies an utterance
-and an observed outcome label. Genesis learns token/outcome associations from
-those examples and tests whether they transfer to held-out utterances. It does
-not discover labels without feedback, parse unrestricted language, or establish
-human-like understanding.
+An external environment supplies an utterance and an observed outcome label.
+Genesis estimates token/outcome associations from those examples, exposes
+competing interpretations with evidence and counterexamples, and evaluates
+predictions on held-out utterances. This is a restricted research experiment,
+not an open-domain language-understanding system.
 """
 from __future__ import annotations
 
+import json
 import math
-import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
-import json
 
 from genesis.linguistics.surface import segment
 
@@ -35,7 +34,11 @@ class GroundedExample:
 
     @property
     def tokens(self) -> tuple[str, ...]:
-        return tuple(token.casefold() for token in segment(self.text) if any(c.isalnum() for c in token))
+        return tuple(
+            token.casefold()
+            for token in segment(self.text)
+            if any(character.isalnum() for character in token)
+        )
 
 
 def load_jsonl(path: str | Path) -> list[GroundedExample]:
@@ -59,11 +62,28 @@ def load_jsonl(path: str | Path) -> list[GroundedExample]:
     return examples
 
 
+@dataclass(frozen=True, slots=True)
+class CandidateInterpretation:
+    """A possible outcome label with a score and traceable training evidence.
+
+    Evidence IDs are examples with at least one overlapping token and the
+    candidate label. Counterexample IDs overlap in tokens but carry a different
+    observed label. These are traceable associations, not proof of meaning.
+    """
+
+    label: str
+    score: float
+    relative_confidence: float
+    matched_tokens: tuple[str, ...]
+    evidence_ids: tuple[str, ...]
+    counterexample_ids: tuple[str, ...]
+
+
 class GroundedAssociationLearner:
     """Multinomial token/outcome association learner; no neural components.
 
     Laplace-smoothed token likelihoods are estimated from feedback. At inference,
-    log-likelihoods are summed for observed tokens. This is a transparent
+    log-likelihoods are summed for observed tokens. It is a transparent
     statistical baseline, not a general semantic representation.
     """
 
@@ -74,22 +94,32 @@ class GroundedAssociationLearner:
         self._label_counts: Counter[str] = Counter()
         self._token_counts: dict[str, Counter[str]] = defaultdict(Counter)
         self._vocabulary: set[str] = set()
+        self._examples: list[GroundedExample] = []
         self._fitted = False
 
     def fit(self, examples: Iterable[GroundedExample]) -> "GroundedAssociationLearner":
         self._label_counts.clear()
         self._token_counts.clear()
         self._vocabulary.clear()
+        self._examples.clear()
         count = 0
+        used_ids: set[str] = set()
         for example in examples:
             if not isinstance(example, GroundedExample):
                 raise TypeError("fit expects GroundedExample instances")
-            tokens = example.tokens
-            self._label_counts[example.label] += 1
-            self._token_counts[example.label].update(tokens)
+            identifier = example.example_id.strip() or f"train-{count + 1:06d}"
+            if identifier in used_ids:
+                identifier = f"{identifier}#{count + 1}"
+            used_ids.add(identifier)
+            normalized = GroundedExample(example.text, example.label, identifier)
+            tokens = normalized.tokens
+            self._label_counts[normalized.label] += 1
+            self._token_counts[normalized.label].update(tokens)
             self._vocabulary.update(tokens)
+            self._examples.append(normalized)
             count += 1
         if count == 0:
+            self._fitted = False
             raise ValueError("cannot fit on an empty dataset")
         self._fitted = True
         return self
@@ -103,14 +133,23 @@ class GroundedAssociationLearner:
         if not self._fitted:
             raise RuntimeError("fit must be called before prediction")
 
+    @staticmethod
+    def _tokens(text: str) -> tuple[str, ...]:
+        if not isinstance(text, str):
+            raise TypeError("text must be a string")
+        return tuple(
+            token.casefold()
+            for token in segment(text)
+            if any(character.isalnum() for character in token)
+        )
+
     def scores(self, text: str) -> dict[str, float]:
         self._require_fitted()
-        tokens = tuple(token.casefold() for token in segment(text) if any(c.isalnum() for c in token))
+        tokens = self._tokens(text)
         vocab_size = max(1, len(self._vocabulary))
         total_examples = sum(self._label_counts.values())
         scores: dict[str, float] = {}
         for label in sorted(self._label_counts):
-            # Smoothed prior plus multinomial token likelihood.
             score = math.log(self._label_counts[label] / total_examples)
             denominator = sum(self._token_counts[label].values()) + self.alpha * (vocab_size + 1)
             for token in tokens:
@@ -119,9 +158,42 @@ class GroundedAssociationLearner:
             scores[label] = score
         return scores
 
-    def predict(self, text: str) -> str:
+    def interpretations(self, text: str, *, limit: int | None = None) -> tuple[CandidateInterpretation, ...]:
+        """Return ranked alternatives with training evidence and counterexamples.
+
+        Relative confidence is a softmax normalization over this model's scores.
+        It is not calibrated probability that the interpretation is true.
+        """
         scores = self.scores(text)
-        return min(scores, key=lambda label: (-scores[label], label))
+        if limit is not None and limit < 1:
+            raise ValueError("limit must be positive when supplied")
+        tokens = self._tokens(text)
+        token_set = set(tokens)
+        maximum = max(scores.values())
+        exponentials = {label: math.exp(score - maximum) for label, score in scores.items()}
+        denominator = sum(exponentials.values()) or 1.0
+        candidates: list[CandidateInterpretation] = []
+        for label in sorted(scores, key=lambda item: (-scores[item], item)):
+            evidence: list[str] = []
+            counterexamples: list[str] = []
+            for example in self._examples:
+                if token_set.intersection(example.tokens):
+                    if example.label == label:
+                        evidence.append(example.example_id)
+                    else:
+                        counterexamples.append(example.example_id)
+            candidates.append(CandidateInterpretation(
+                label=label,
+                score=scores[label],
+                relative_confidence=exponentials[label] / denominator,
+                matched_tokens=tuple(token for token in tokens if token in self._vocabulary),
+                evidence_ids=tuple(evidence),
+                counterexample_ids=tuple(counterexamples),
+            ))
+        return tuple(candidates if limit is None else candidates[:limit])
+
+    def predict(self, text: str) -> str:
+        return self.interpretations(text, limit=1)[0].label
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,7 +223,10 @@ def _metrics(examples: list[GroundedExample], predictions: list[str]) -> ModelMe
         examples=denominator,
         correct=correct,
         accuracy=correct / denominator if denominator else 0.0,
-        predictions=tuple((example.text, example.label, prediction) for example, prediction in zip(examples, predictions)),
+        predictions=tuple(
+            (example.text, example.label, prediction)
+            for example, prediction in zip(examples, predictions)
+        ),
     )
 
 
