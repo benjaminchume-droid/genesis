@@ -76,6 +76,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/learning/rules":
             rules = runtime.learning.rules()
             return self._json(200, [{"rule_id": r.rule_id, "feature": r.feature, "outcome": r.outcome, "support": r.support, "counterexamples": r.counterexamples, "precision": r.precision, "evidence_ids": r.evidence_ids, "counterexample_ids": r.counterexample_ids} for r in rules])
+        if path == "/api/learning/history":
+            return self._json(200, runtime.learning.history())
         if path == "/api/knowledge":
             query = parse_qs(parsed.query).get("q", [""])[0]
             try:
