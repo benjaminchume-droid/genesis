@@ -303,10 +303,10 @@ class WebResearch:
     @staticmethod
     def _extract_candidate_sentences(content: str, limit: int = 80) -> list[str]:
         # Generic sentence segmentation only. This proposes review candidates, not truth.
-        pieces = re.split(r"(?<=[.!?])\\s+|[\\r\\n]+", content)
+        pieces = re.split(r"(?<=[.!?])\s+|[\r\n]+", content)
         candidates, seen = [], set()
         for piece in pieces:
-            statement = " ".join(piece.strip(" \\t•*-–—").split())
+            statement = " ".join(piece.strip(" \t•*-–—").split())
             if not 30 <= len(statement) <= 1200:
                 continue
             normalized = statement.casefold()
