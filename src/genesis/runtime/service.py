@@ -33,5 +33,5 @@ class GenesisRuntime:
         payload = {"format": "genesis-local-task-export", "schema_version": 1, "tasks": self.tasks.list(limit=1000)}
         path = Path(destination)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         return {"path": str(path), "task_count": len(payload["tasks"])}
