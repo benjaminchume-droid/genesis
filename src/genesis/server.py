@@ -67,8 +67,9 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
         runtime = self.server.runtime
-        if path == "/":
-            body = files("genesis.web").joinpath("index.html").read_bytes()
+        if path in {"/", "/workspace"}:
+            page_name = "index.html" if path == "/" else "workspace.html"
+            body = files("genesis.web").joinpath(page_name).read_bytes()
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
@@ -78,6 +79,23 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+        if path == "/api/models":
+            active = runtime.models.active()
+            return self._json(200, {
+                "product": "Genesis",
+                "release_label": "Genesis 1.0",
+                "runtime_version": "0.1.0-preview",
+                "engine": "local non-neural symbolic and evidence-grounded runtime",
+                "installed_model_count": 1,
+                "models": [{"id": "genesis-local", "name": "Genesis 1.0", "available": True,
+                            "kind": "symbolic_runtime", "active_knowledge_release": active["version"] if active else None}],
+                "modes": [
+                    {"id": "mini", "name": "Mini", "description": "Fast, local-first retrieval with a small evidence budget."},
+                    {"id": "balanced", "name": "Balanced", "description": "Default response policy with moderate evidence depth."},
+                    {"id": "thinking", "name": "Thinking", "description": "Larger evidence budget; with Web enabled, runs adaptive multi-round research."}
+                ],
+                "notice": "These are response modes over one local runtime, not separate pretrained or neural models."
+            })
         if path == "/api/status":
             return self._json(200, runtime.status())
         if path == "/api/tasks":
@@ -140,7 +158,9 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError("query must be a string")
                 return self._json(200, runtime.responses.respond(body["query"],
                     search_web=body.get("search_web", False), ingest_sources=body.get("ingest_sources", False),
-                    limit=int(body.get("limit", 5)), max_excerpts=int(body.get("max_excerpts", 4))))
+                    limit=int(body.get("limit", 5)), max_excerpts=int(body.get("max_excerpts", 4)),
+                    mode=body.get("mode", "balanced"), depth=int(body.get("depth", 50)),
+                    context=body.get("context", [])))
             if path == "/api/research/search":
                 if not isinstance(body.get("query"), str):
                     raise ValueError("query must be a string")
