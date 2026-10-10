@@ -38,8 +38,8 @@ The local API exposes GET /api/concepts, GET /api/relations, POST /api/relations
 - Relation-frame extraction from annotated examples is implemented as a candidate generator. Open-domain extraction from arbitrary raw language is not a reliable general-purpose capability. Candidate frames do not yet robustly handle negation, coreference, temporal context, or paraphrases outside the learned lexical frame.
 - Composition is graph-path discovery. It does not establish causality, temporal validity, or the truth of every edge.
 - Exclusive predicates are marked explicitly by the operator. Genesis does not infer that a predicate is functional in all contexts.
-- A wall-clock deadline is checked between registered actions. A synchronous action already running is not forcibly terminated. The runtime must not describe this as hard preemptive cancellation. Individual action timeouts require isolated worker processes or another safely interruptible execution model.
-- Cancellation is cooperative between actions. It cannot reverse side effects already completed by a running action.
+- A total execution deadline is checked between registered actions. Each registered action now runs in a disposable worker process with an enforceable per-action timeout; the worker is terminated when the timeout expires. Cancellation is polled while the worker runs and terminates that worker. The current process-isolation design must be tested on each supported operating system before being treated as release-grade.
+- Cancellation can terminate the isolated action worker, but cannot reverse side effects already committed before the cancellation was observed. Actions with multiple writes should be designed to be transactional or idempotent.
 - Grouped splits prevent only the leakage represented by the supplied group field. Bad or incomplete provenance labels can still leak.
 - Metrics do not establish competence by themselves. Run multiple seeds, preserve dataset hashes, compare baselines, inspect errors, and report confidence intervals before drawing conclusions.
 - The concept graph is symbolic and non-neural. It does not prove that Genesis has human-like understanding or unrestricted intelligence.
@@ -52,4 +52,4 @@ The local API exposes GET /api/concepts, GET /api/relations, POST /api/relations
 4. Report per-class precision/recall/F1, coverage, selective accuracy, abstention, group split, seed, dataset hash, and error categories.
 5. Add calibrated confidence only after calibration is measured on independent validation data.
 6. Expand relation-frame extraction with evidence spans, explicit negation/context handling, and human review; retain candidate-only status until held-out results justify stronger trust.
-7. Replace cooperative deadlines with isolated workers before running expensive, blocking, or untrusted actions.
+7. Stress-test worker termination, partial database writes, cancellation races, and Windows/macOS process startup before release.
