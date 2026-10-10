@@ -6,9 +6,9 @@ The current implementation adds a persistent, non-neural symbolic induction base
 
 ## Learning engine
 
-The module src/genesis/learning/induction.py stores labelled experiences and induced rules in SQLite. Each experience contains text, an observed outcome label, source label, timestamp, and stable ID. The user or an environment must supply the outcome; unlabelled observations are not silently converted into facts.
+The module src/genesis/learning/induction.py stores labelled experiences and induced rules in SQLite. Each experience contains text, an observed outcome label, source label, timestamp, and stable ID. The user or an environment must supply the outcome; unlabelled observations are not silently converted into facts. Adding explicitly labelled feedback refreshes the current rules automatically; bulk JSONL imports can be followed by a deliberate fit.
 
-The learner extracts generic lexical features and ordered adjacent-token features. It estimates which features repeatedly co-occur with outcomes, keeps counterexample IDs, and can revise the rule set after new experience arrives. At prediction time, matched rules vote for candidate outcomes. If the two leading normalized scores are too close, the learner abstains.
+The learner extracts generic lexical features and ordered adjacent-token features. It estimates which features repeatedly co-occur with outcomes, keeps counterexample IDs, and revises the current rule set after new experience arrives. Versioned rule snapshots are retained so the history of revisions and counterexamples remains inspectable. At prediction time, matched rules vote for candidate outcomes. If the two leading normalized scores are too close, the learner abstains.
 
 This is a symbolic/statistical baseline, not a semantic model. Token co-occurrence can be spurious; feature extraction does not identify concepts, causality, negation, or context in general. Support and precision are measurements over the stored sample, not calibrated probabilities. Evaluate on an independently held-out dataset before using predictions for consequential actions.
 
