@@ -16,6 +16,8 @@ from genesis.learning.relation_induction import RelationFrameLearner
 from genesis.runtime.executor import TaskExecutor
 from genesis.dialogue.response import GroundedResponseEngine
 from genesis.research.web import WebResearch
+from genesis.research.browser import GenesisBrowser
+from genesis.research.controller import AdaptiveResearchController
 
 
 class GenesisRuntime:
@@ -29,6 +31,8 @@ class GenesisRuntime:
         self.concepts = ConceptRelationGraph(self.home / "concepts.sqlite3")
         self.relation_learner = RelationFrameLearner(self.home / "relation-learning.sqlite3")
         self.research = WebResearch(self.home / "research.sqlite3", runtime=self)
+        self.browser = GenesisBrowser(self.research, self.home / "browser.sqlite3")
+        self.research_controller = AdaptiveResearchController(self.browser)
         self.responses = GroundedResponseEngine(self)
         self.executor = TaskExecutor(self)
 
