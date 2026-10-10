@@ -41,14 +41,25 @@ class Handler(BaseHTTPRequestHandler):
         return value
 
     def _safe_origin(self):
-        host_header = self.headers.get("Host", "")
-        parsed_host = urlparse("//" + host_header)
-        if parsed_host.hostname not in {"127.0.0.1", "localhost", "::1"}:
+        try:
+            host_header = self.headers.get("Host", "")
+            parsed_host = urlparse("//" + host_header)
+            if parsed_host.hostname not in {"127.0.0.1", "localhost", "::1"}:
+                return False
+            origin = self.headers.get("Origin")
+            if origin:
+                parsed_origin = urlparse(origin)
+                if parsed_origin.scheme not in {"http", "https"}:
+                    return False
+                if parsed_origin.hostname != parsed_host.hostname:
+                    return False
+                host_port = parsed_host.port or (443 if parsed_origin.scheme == "https" else 80)
+                origin_port = parsed_origin.port or (443 if parsed_origin.scheme == "https" else 80)
+                if host_port != origin_port:
+                    return False
+            return True
+        except ValueError:
             return False
-        origin = self.headers.get("Origin")
-        if origin and urlparse(origin).hostname not in {"127.0.0.1", "localhost", "::1"}:
-            return False
-        return True
 
     def do_GET(self):
         if not self._safe_origin():
@@ -96,11 +107,17 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/research/status":
             return self._json(200, runtime.research.status())
         if path == "/api/research/documents":
-            return self._json(200, runtime.research.list_documents(int(parse_qs(parsed.query).get("limit", ["50"])[0])))
+            try:
+                return self._json(200, runtime.research.list_documents(int(parse_qs(parsed.query).get("limit", ["50"])[0])))
+            except ValueError as exc:
+                return self._json(400, {"error": str(exc)})
         if path == "/api/research/claims":
             query = parse_qs(parsed.query)
-            return self._json(200, runtime.research.list_claims(query.get("status", ["pending"])[0],
-                int(query.get("limit", ["100"])[0])))
+            try:
+                return self._json(200, runtime.research.list_claims(query.get("status", ["pending"])[0],
+                    int(query.get("limit", ["100"])[0])))
+            except ValueError as exc:
+                return self._json(400, {"error": str(exc)})
         if path == "/api/knowledge":
             query = parse_qs(parsed.query).get("q", [""])[0]
             try:
