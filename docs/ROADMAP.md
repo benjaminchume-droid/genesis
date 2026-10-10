@@ -18,6 +18,8 @@ Exit criteria:
 - Every implemented capability has tests and documented limits.
 
 ## Stage 1: Observation substrate
+Status: raw observation persistence and bounded in-memory dialogue context implemented; schema migration, export, deletion workflows, retention controls, and deterministic replay remain incomplete.
+
 Deliverables:
 - Append-only observation records with timestamps and source/context metadata.
 - Local persistence and schema versioning.
