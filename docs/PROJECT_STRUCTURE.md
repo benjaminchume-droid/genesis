@@ -17,12 +17,16 @@ The repository is arranged by responsibility rather than by demo screen.
     │   └── SAFETY_AND_SECURITY.md
     ├── src/
     │   └── genesis/
+    │       ├── acquisition/
+    │       │   └── source.py
     │       ├── capabilities/
     │       │   └── procedure.py
     │       ├── core/
     │       │   ├── evidence_store.py
     │       │   ├── observation.py
     │       │   └── store.py
+    │       ├── dialogue/
+    │       │   └── context.py
     │       ├── evaluation/
     │       │   └── dataset.py
     │       ├── interpretation/
@@ -31,6 +35,8 @@ The repository is arranged by responsibility rather than by demo screen.
     │       │   └── claim.py
     │       ├── linguistics/
     │       │   └── surface.py
+    │       ├── representations/
+    │       │   └── relations.py
     │       ├── structures/
     │       │   └── discovery.py
     │       ├── __init__.py
@@ -53,6 +59,9 @@ The repository is arranged by responsibility rather than by demo screen.
 - core/observation.py defines the immutable record for a raw observation.
 - core/store.py persists raw observations. It does not interpret them.
 - core/evidence_store.py persists interpretation hypotheses and source-traceable claims while preserving their uncertain/unverified status.
+- dialogue/context.py retains a bounded ordered window of recent turns; it does not infer their meanings.
+- representations/relations.py stores generic relations and evidence references without imposing a fixed ontology.
+- acquisition/source.py records source text, origin, acquisition time, and a content digest; it does not retrieve the web itself.
 - linguistics/surface.py provides transparent segmentation and corpus statistics.
 - structures/discovery.py identifies repeated token sequences and their left/right surface contexts. It does not assign meaning.
 - interpretation/hypothesis.py defines an auditable hypothesis record; it does not infer intent.
