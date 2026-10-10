@@ -1,4 +1,4 @@
-"""Command-line interface for the Genesis research scaffold."""
+""""Command-line interface for the Genesis research scaffold."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import json
 
 from genesis.core.observation import Observation
 from genesis.core.store import ObservationStore
+from genesis.interpretation.grounded import evaluate, load_jsonl
 from genesis.linguistics.surface import segment, summarize
 from genesis.structures.discovery import discover_repeated_sequences
 
@@ -35,6 +36,14 @@ def _parser() -> argparse.ArgumentParser:
     discover.add_argument("--limit", type=int, default=50)
     discover.add_argument("--case-sensitive", action="store_true")
 
+    learn = commands.add_parser(
+        "learn-evaluate",
+        help="Evaluate non-neural token/outcome learning against held-out examples.",
+    )
+    learn.add_argument("--train", required=True, help="Training JSONL path (text + label).")
+    learn.add_argument("--test", required=True, help="Held-out JSONL path (text + label).")
+    learn.add_argument("--alpha", type=float, default=1.0, help="Positive smoothing value.")
+
     commands.add_parser("stats", help="Print corpus surface statistics.")
 
     segment_command = commands.add_parser(
@@ -48,8 +57,38 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _metrics_json(metrics) -> dict:
+    return {
+        "examples": metrics.examples,
+        "correct": metrics.correct,
+        "accuracy": metrics.accuracy,
+        "predictions": [
+            {"text": text, "expected": expected, "predicted": predicted}
+            for text, expected, predicted in metrics.predictions
+        ],
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+
+    if args.command == "learn-evaluate":
+        report = evaluate(load_jsonl(args.train), load_jsonl(args.test), alpha=args.alpha)
+        print(json.dumps({
+            "experiment": "grounded_token_outcome_association",
+            "training_examples": report.training_examples,
+            "held_out_examples": report.held_out_examples,
+            "labels_seen_in_training": report.labels,
+            "learner": _metrics_json(report.learner),
+            "baselines": {
+                "majority": _metrics_json(report.majority_baseline),
+                "exact_retrieval": _metrics_json(report.exact_retrieval_baseline),
+                "token_frequency": _metrics_json(report.frequency_baseline),
+            },
+            "limitation": report.generalization_note,
+        }, ensure_ascii=False, indent=2))
+        return 0
+
     store = ObservationStore(args.database)
 
     if args.command == "observe":
