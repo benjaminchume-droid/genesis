@@ -30,6 +30,9 @@ def test_counterexamples_are_visible_and_rules_update_after_new_experience(tmp_p
     revised=next(r for r in learner.rules() if r.feature=="token:dax" and r.outcome=="warm")
     assert revised.counterexamples == 1
     assert revised.counterexample_ids == ("c2",)
+    history=learner.history()
+    assert len({row["run_id"] for row in history}) >= 2
+    assert any(row["counterexample_ids"] == ["c2"] for row in history)
 
 
 def test_engine_persists_experiences_and_rules(tmp_path):
