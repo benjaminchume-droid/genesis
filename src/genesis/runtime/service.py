@@ -31,7 +31,7 @@ class GenesisRuntime:
 
     def status(self) -> dict[str, Any]:
         active = self.models.active()
-        return {"home": str(self.home), "observation_count": len(list(self.observations.all_texts())), "task_count": len(self.tasks.list()), "active_model": active["version"] if active else None, "installed_models": self.models.list_versions(), "runtime_note": "Local records persist on this device. No contribution upload or network sync is performed by this runtime."}
+        return {"home": str(self.home), "observation_count": len(list(self.observations.all_texts())), "task_count": len(self.tasks.list()), "learning": self.learning.status(), "active_model": active["version"] if active else None, "installed_models": self.models.list_versions(), "runtime_note": "Local records persist on this device. No contribution upload or network sync is performed by this runtime."}
 
     def export_task_state(self, destination: str | Path) -> dict[str, Any]:
         payload = {"format": "genesis-local-task-export", "schema_version": 1, "tasks": self.tasks.list(limit=1000)}
