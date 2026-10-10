@@ -14,6 +14,7 @@ from genesis.learning.induction import ExperienceLearningEngine
 from genesis.learning.concepts import ConceptRelationGraph
 from genesis.learning.relation_induction import RelationFrameLearner
 from genesis.runtime.executor import TaskExecutor
+from genesis.dialogue.response import GroundedResponseEngine
 from genesis.research.web import WebResearch
 
 
@@ -28,6 +29,7 @@ class GenesisRuntime:
         self.concepts = ConceptRelationGraph(self.home / "concepts.sqlite3")
         self.relation_learner = RelationFrameLearner(self.home / "relation-learning.sqlite3")
         self.research = WebResearch(self.home / "research.sqlite3", runtime=self)
+        self.responses = GroundedResponseEngine(self)
         self.executor = TaskExecutor(self)
 
     def observe(self, text: str, source: str = "user") -> dict[str, Any]:
