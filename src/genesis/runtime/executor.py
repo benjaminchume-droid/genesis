@@ -108,12 +108,18 @@ class TaskExecutor:
             raise ValueError(f"deadline_seconds must be 0.1..{self.MAX_DEADLINE_SECONDS}")
         if len(plan) > max_steps:
             raise ValueError("plan exceeds max_steps execution budget")
-        normalized = [self._validate_step(step, i) for i, step in enumerate(plan)
-                      if isinstance(step, dict)]
-        if len(normalized) != len(plan):
-            raise ValueError("each plan step must be an action object")
-        plan_json = json.dumps(plan, sort_keys=True, ensure_ascii=False)
         task = self.runtime.tasks.get(task_id)
+        try:
+            normalized = [self._validate_step(step, i) for i, step in enumerate(plan)
+                          if isinstance(step, dict)]
+            if len(normalized) != len(plan):
+                raise ValueError("each plan step must be an action object")
+        except (ValueError, TypeError) as exc:
+            self.runtime.tasks.checkpoint(task_id, status="failed", data={
+                "failed_step": 0, "error": f"plan validation: {type(exc).__name__}: {exc}"
+            }, event="plan_validation_failed")
+            raise
+        plan_json = json.dumps(plan, sort_keys=True, ensure_ascii=False)
         checkpoint = task["checkpoint"] if resume else {}
         completed = checkpoint.get("completed_steps", [])
         if not isinstance(completed, list) or any(not isinstance(i, int) for i in completed):
