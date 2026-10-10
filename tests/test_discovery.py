@@ -15,7 +15,7 @@ def test_discovery_finds_repeated_sequence_and_context():
     candidate = next(item for item in report.candidates if item.tokens == ("the", "dog"))
     assert candidate.occurrences == 3
     assert candidate.observation_indices == (0, 1, 2)
-    assert ("chased", 1) in candidate.right_contexts
+    assert ("chased", 2) in candidate.right_contexts
 
 
 def test_discovery_is_case_insensitive_by_default():
