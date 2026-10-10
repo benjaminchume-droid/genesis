@@ -173,7 +173,8 @@ class Handler(BaseHTTPRequestHandler):
                 task_id = unquote(path[len("/api/tasks/"):-len("/run")].rstrip("/"))
                 return self._json(200, runtime.executor.execute(task_id, body.get("plan"),
                     resume=body.get("resume", True), max_steps=body.get("max_steps", 100),
-                    deadline_seconds=body.get("deadline_seconds", 120)))
+                    deadline_seconds=body.get("deadline_seconds", 120),
+                    action_timeout_seconds=body.get("action_timeout_seconds", 30)))
             if path.startswith("/api/tasks/") and path.endswith("/cancel"):
                 task_id = unquote(path[len("/api/tasks/"):-len("/cancel")].rstrip("/"))
                 task = runtime.tasks.checkpoint(task_id, status="cancelled",
