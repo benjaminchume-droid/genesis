@@ -10,6 +10,8 @@ from genesis.core.observation import Observation
 from genesis.core.store import ObservationStore
 from genesis.runtime.model_store import ModelStore
 from genesis.runtime.tasks import TaskLedger
+from genesis.learning.induction import ExperienceLearningEngine
+from genesis.runtime.executor import TaskExecutor
 
 
 class GenesisRuntime:
@@ -19,6 +21,8 @@ class GenesisRuntime:
         self.observations = ObservationStore(str(self.home / "observations.sqlite3"))
         self.tasks = TaskLedger(self.home / "tasks.sqlite3")
         self.models = ModelStore(self.home / "models")
+        self.learning = ExperienceLearningEngine(self.home / "learning.sqlite3")
+        self.executor = TaskExecutor(self)
 
     def observe(self, text: str, source: str = "user") -> dict[str, Any]:
         item = Observation.create(text, source=source)
