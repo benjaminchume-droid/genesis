@@ -4,8 +4,9 @@ Genesis has a real web acquisition path, not a placeholder tools directory.
 
 ## Search providers
 
-- DuckDuckGo's HTML search page is used as the general-web provider. This is a best-effort HTML integration, not an official stable search API, so upstream markup or access policy can change.
-- MediaWiki's official REST search endpoint is the keyless fallback and a second source when needed.
+- If `GENESIS_BRAVE_SEARCH_API_KEY` is configured, Genesis uses Brave Search API as the primary general-web provider. The key stays in the local process environment and is never returned or persisted in search results.
+- DuckDuckGo's HTML search page is the keyless best-effort general-web fallback, not an official stable search API, so upstream markup or access policy can change.
+- MediaWiki's official REST search endpoint is a keyless secondary source and fallback.
 - Search results retain provider, query, URL, snippet, timestamp and search ID. Search leads are not evidence that a statement is true.
 
 ## Acquisition lifecycle
@@ -25,6 +26,8 @@ Genesis has a real web acquisition path, not a placeholder tools directory.
 - Public search providers can throttle, block or change markup. Provider errors are returned transparently; a failed provider is not represented as a successful search.
 
 ## Interfaces
+
+Configure optional Brave search by setting `GENESIS_BRAVE_SEARCH_API_KEY` in the local process environment. Without it, Genesis tries the keyless DuckDuckGo HTML integration and then MediaWiki. Provider availability and terms can change.
 
 CLI:
 - `genesis-workspace web-search "topic" --limit 10`
