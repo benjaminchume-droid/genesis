@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from genesis.learning.contribution import canonical_json
+from genesis.learning.contribution import LearningContribution, canonical_json
 from genesis.trainer.ingest import TrainerStore
 
 RELEASE_SCHEMA = 1
