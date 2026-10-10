@@ -324,6 +324,9 @@ class _SearchResultParser(HTMLParser):
             self.current = None
             self.capture = None
         elif tag in {"a", "div", "td"} and self.capture == "snippet":
+            if self.results:
+                title, href, _ = self.results[-1]
+                self.results[-1] = (title, href, " ".join("".join(self.snippet).split()))
             self.capture = None
     def handle_data(self, data):
         if self.current and self.capture == "title":
