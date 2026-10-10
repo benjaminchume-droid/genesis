@@ -12,6 +12,7 @@ from genesis.runtime.model_store import ModelStore
 from genesis.runtime.tasks import TaskLedger
 from genesis.learning.induction import ExperienceLearningEngine
 from genesis.learning.concepts import ConceptRelationGraph
+from genesis.learning.relation_induction import RelationFrameLearner
 from genesis.runtime.executor import TaskExecutor
 
 
@@ -24,6 +25,7 @@ class GenesisRuntime:
         self.models = ModelStore(self.home / "models")
         self.learning = ExperienceLearningEngine(self.home / "learning.sqlite3")
         self.concepts = ConceptRelationGraph(self.home / "concepts.sqlite3")
+        self.relation_learner = RelationFrameLearner(self.home / "relation-learning.sqlite3")
         self.executor = TaskExecutor(self)
 
     def observe(self, text: str, source: str = "user") -> dict[str, Any]:
@@ -35,7 +37,7 @@ class GenesisRuntime:
         active = self.models.active()
         return {"home": str(self.home), "observation_count": len(list(self.observations.all_texts())),
                 "task_count": len(self.tasks.list()), "learning": self.learning.status(),
-                "concept_graph": self.concepts.status(),
+                "concept_graph": self.concepts.status(), "relation_learning": self.relation_learner.status(),
                 "active_model": active["version"] if active else None,
                 "installed_models": self.models.list_versions(),
                 "runtime_note": "Local records persist on this device. No contribution upload or network sync is performed by this runtime."}
