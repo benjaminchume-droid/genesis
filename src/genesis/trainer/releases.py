@@ -57,6 +57,10 @@ def verify_release(source: str | Path) -> dict[str, Any]:
         knowledge = archive.read("knowledge.jsonl")
     if manifest.get("format") != "genesis-knowledge-release" or manifest.get("schema_version") != RELEASE_SCHEMA:
         raise ValueError("unsupported release format/version")
+    version = manifest.get("version")
+    allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-+"
+    if not isinstance(version, str) or not version or len(version) > 80 or any(c not in allowed for c in version):
+        raise ValueError("unsafe release version identifier")
     actual = hashlib.sha256(knowledge).hexdigest()
     if manifest.get("files", {}).get("knowledge.jsonl") != actual:
         raise ValueError("knowledge file hash mismatch")
@@ -68,4 +72,7 @@ def verify_release(source: str | Path) -> dict[str, Any]:
         payload = record.get("record")
         if not isinstance(payload, dict) or not isinstance(record.get("content_hash"), str):
             raise ValueError(f"invalid knowledge record {index}")
+        contribution = LearningContribution.from_dict(payload)
+        if contribution.content_hash != record["content_hash"]:
+            raise ValueError(f"knowledge record {index} content hash mismatch")
     return {"valid": True, "version": manifest["version"], "record_count": len(rows), "sha256": hashlib.sha256(path.read_bytes()).hexdigest(), "authenticated": False}
