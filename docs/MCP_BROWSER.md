@@ -24,7 +24,7 @@ pytest
 genesis-mcp
 ```
 
-The MCP server exposes both browser tools and Genesis's own local substrate: runtime status, observation recording, explicitly labelled experience learning, rule fitting, outcome prediction, installed-knowledge search, concept inspection, relation search/composition, source saving, and claim-review ingestion. These tools expose the actual runtime stores; they do not silently treat retrieved text as verified knowledge.
+The MCP server exposes both browser tools and Genesis's own local substrate. The `research_iteratively` tool performs bounded adaptive search: it opens sources, estimates lexical overlap with the original question, detects weak domain diversity or missing query terms, reformulates once or twice from observed page titles/headings/text, deduplicates identical extracted content, and returns explicit evidence gaps with source URLs and hashes. These diagnostics do not prove source independence or factual correctness. The server also exposes: runtime status, observation recording, explicitly labelled experience learning, rule fitting, outcome prediction, installed-knowledge search, concept inspection, relation search/composition, source saving, and claim-review ingestion. These tools expose the actual runtime stores; they do not silently treat retrieved text as verified knowledge.
 
 The MCP process communicates over standard input/output using JSON-RPC, one message per line. Configure your MCP-compatible host to launch `genesis-mcp` in the installed environment. Set `GENESIS_HOME` if you want to choose where local state is stored. No API key is needed. If a provider starts throttling or changes its HTML, search can return provider errors; opening a known public URL still works independently.
 
