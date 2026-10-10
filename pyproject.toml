@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "genesis-cognitive-substrate"
+version = "0.1.0"
+description = "A non-neural research substrate for experience-driven linguistic capability acquisition."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary - no license granted" }
+authors = [{ name = "Genesis Project" }]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+genesis = "genesis.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
