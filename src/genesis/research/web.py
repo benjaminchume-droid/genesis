@@ -12,6 +12,7 @@ import hashlib
 import html
 import ipaddress
 import json
+import os
 import re
 import socket
 import sqlite3
@@ -79,9 +80,12 @@ class _SafeRedirect(HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
-def _http_get(url: str, *, max_bytes: int = MAX_PAGE_BYTES) -> tuple[bytes, str, str]:
+def _http_get(url: str, *, max_bytes: int = MAX_PAGE_BYTES, headers: dict[str, str] | None = None) -> tuple[bytes, str, str]:
     url = _public_http_url(url)
-    request = Request(url, headers={"User-Agent": USER_AGENT, "Accept": "text/html,application/json;q=0.9,*/*;q=0.2"})
+    request_headers = {"User-Agent": USER_AGENT, "Accept": "text/html,application/json;q=0.9,*/*;q=0.2"}
+    if headers:
+        request_headers.update(headers)
+    request = Request(url, headers=request_headers)
     opener = build_opener(_SafeRedirect)
     try:
         with opener.open(request, timeout=TIMEOUT_SECONDS) as response:
@@ -163,6 +167,29 @@ class WebResearch:
         return db
 
     @staticmethod
+    def _brave_search(query: str, limit: int) -> list[dict]:
+        token = os.environ.get("GENESIS_BRAVE_SEARCH_API_KEY", "").strip()
+        if not token:
+            return []
+        url = "https://api.search.brave.com/res/v1/web/search?" + urlencode({"q": query, "count": min(limit, 20)})
+        data, _, charset = _http_get(url, max_bytes=1_000_000,
+            headers={"X-Subscription-Token": token, "Accept": "application/json"})
+        payload = json.loads(data.decode(charset, errors="replace"))
+        results = []
+        for item in payload.get("web", {}).get("results", []):
+            href = str(item.get("url", "")).strip()
+            try:
+                href = _public_http_url(href)
+            except ValueError:
+                continue
+            results.append({"title": str(item.get("title", href))[:500], "url": href,
+                "snippet": str(item.get("description", ""))[:1500],
+                "provider": "brave_web_api", "retrieved_at": _now()})
+            if len(results) >= limit:
+                break
+        return results
+
+    @staticmethod
     def _ddg_search(query: str, limit: int) -> list[dict]:
         url = "https://html.duckduckgo.com/html/?" + urlencode({"q": query})
         data, _, charset = _http_get(url, max_bytes=1_000_000)
@@ -208,7 +235,11 @@ class WebResearch:
     def search(self, query: str, limit: int = 10) -> dict:
         query = _validate_query(query, limit)
         all_results, errors = [], []
-        for provider, searcher in (("duckduckgo_html", self._ddg_search), ("mediawiki_rest", self._wikipedia_search)):
+        providers = []
+        if os.environ.get("GENESIS_BRAVE_SEARCH_API_KEY", "").strip():
+            providers.append(("brave_web_api", self._brave_search))
+        providers.extend((("duckduckgo_html", self._ddg_search), ("mediawiki_rest", self._wikipedia_search)))
+        for provider, searcher in providers:
             try:
                 found = searcher(query, limit)
                 all_results.extend(found)
@@ -361,7 +392,7 @@ class WebResearch:
             docs = db.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
             ingested = db.execute("SELECT COUNT(*) FROM documents WHERE status='ingested'").fetchone()[0]
         return {"searches": searches, "documents": docs, "ingested_documents": ingested,
-                "providers": ["duckduckgo_html", "mediawiki_rest"], "fetch_max_bytes": MAX_PAGE_BYTES,
+                "providers": (["brave_web_api"] if os.environ.get("GENESIS_BRAVE_SEARCH_API_KEY", "").strip() else []) + ["duckduckgo_html", "mediawiki_rest"], "fetch_max_bytes": MAX_PAGE_BYTES,
                 "page_text_limit": MAX_TEXT_CHARS, "automatic_fact_promotion": False}
 
     def list_documents(self, limit: int = 50) -> list[dict]:
