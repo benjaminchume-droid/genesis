@@ -110,7 +110,7 @@ def export_contributions(contributions: list[LearningContribution], destination:
     path = Path(destination)
     path.parent.mkdir(parents=True, exist_ok=True)
     header = {"format": "genesis-contributions", "schema_version": SCHEMA_VERSION, "count": len(records)}
-    content = b"\\n".join([canonical_json(header), *(canonical_json(record) for record in records)]) + b"\\n"
+    content = b"\n".join([canonical_json(header), *(canonical_json(record) for record in records)]) + b"\n"
     path.write_bytes(content)
     return {"path": str(path), "count": len(records), "sha256": sha256_bytes(content)}
 
