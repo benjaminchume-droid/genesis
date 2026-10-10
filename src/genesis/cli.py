@@ -80,6 +80,23 @@ def main(argv: list[str] | None = None) -> int:
             "held_out_examples": report.held_out_examples,
             "labels_seen_in_training": report.labels,
             "learner": _metrics_json(report.learner),
+            "candidate_interpretations": [
+                {
+                    "text": text,
+                    "candidates": [
+                        {
+                            "label": candidate.label,
+                            "score": candidate.score,
+                            "relative_confidence": candidate.relative_confidence,
+                            "matched_tokens": candidate.matched_tokens,
+                            "evidence_ids": candidate.evidence_ids,
+                            "counterexample_ids": candidate.counterexample_ids,
+                        }
+                        for candidate in candidates
+                    ],
+                }
+                for text, candidates in report.candidate_interpretations
+            ],
             "baselines": {
                 "majority": _metrics_json(report.majority_baseline),
                 "exact_retrieval": _metrics_json(report.exact_retrieval_baseline),
