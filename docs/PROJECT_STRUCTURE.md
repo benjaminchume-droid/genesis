@@ -20,6 +20,7 @@ The repository is arranged by responsibility rather than by demo screen.
     │       ├── capabilities/
     │       │   └── procedure.py
     │       ├── core/
+    │       │   ├── evidence_store.py
     │       │   ├── observation.py
     │       │   └── store.py
     │       ├── evaluation/
@@ -51,6 +52,7 @@ The repository is arranged by responsibility rather than by demo screen.
 
 - core/observation.py defines the immutable record for a raw observation.
 - core/store.py persists raw observations. It does not interpret them.
+- core/evidence_store.py persists interpretation hypotheses and source-traceable claims while preserving their uncertain/unverified status.
 - linguistics/surface.py provides transparent segmentation and corpus statistics.
 - structures/discovery.py identifies repeated token sequences and their left/right surface contexts. It does not assign meaning.
 - interpretation/hypothesis.py defines an auditable hypothesis record; it does not infer intent.
