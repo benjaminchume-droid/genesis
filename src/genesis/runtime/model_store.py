@@ -62,7 +62,7 @@ class ModelStore:
         if hashlib.sha256((target / "knowledge.jsonl").read_bytes()).hexdigest() != manifest["files"]["knowledge.jsonl"]:
             raise ValueError("installed package integrity check failed")
         temporary = self.active_file.with_suffix(".tmp")
-        temporary.write_text(json.dumps({"version": version}, sort_keys=True) + "\\n", encoding="utf-8")
+        temporary.write_text(json.dumps({"version": version}, sort_keys=True) + "\n", encoding="utf-8")
         os.replace(temporary, self.active_file)
         return {"active_version": version}
 
