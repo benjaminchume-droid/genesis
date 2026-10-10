@@ -36,7 +36,6 @@ android {
 
 python {
     version = '3.11'
-    buildPython '3.11'
 }
 
 sourceSets {
