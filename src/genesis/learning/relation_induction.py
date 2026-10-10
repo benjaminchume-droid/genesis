@@ -67,10 +67,9 @@ def _compile_template(template: str) -> re.Pattern[str]:
             name = "object" if "object" not in used else "object2"
             used.add("object")
             result.append(f"(?P<{name}>.+?)")
-        elif piece:
         elif piece and piece.strip():
             fixed_tokens = piece.split()
-            result.append(r"\\s*" + r"\\s+".join(re.escape(token) for token in fixed_tokens) + r"\\s*")
+            result.append(r"\s*" + r"\s+".join(re.escape(token) for token in fixed_tokens) + r"\s*")
     result.append("\\s*$")
     return re.compile("".join(result), re.IGNORECASE)
 
