@@ -54,12 +54,15 @@ class _PageParser(HTMLParser):
             raw = attrs["href"].strip()
             if raw and not raw.startswith(("#", "javascript:", "mailto:", "tel:", "data:")):
                 absolute = urljoin(self.base_url, raw)
-                try:
-                    # Validate at navigation time too; unsafe links are not exposed as actionable.
-                    absolute = _public_http_url(absolute)
-                except ValueError:
-                    absolute = ""
-                if absolute:
+                parsed = urlparse(absolute)
+                host = (parsed.hostname or "").rstrip(".").casefold()
+                # Do inexpensive syntactic filtering while parsing. DNS/IP policy is
+                # enforced by open_page immediately before navigation, avoiding up to
+                # 200 serial DNS lookups just to display a page's link list.
+                reserved = (host in {"localhost", "localhost.localdomain"} or
+                            host.endswith((".localhost", ".local")) or
+                            parsed.username is not None or parsed.password is not None)
+                if parsed.scheme in {"http", "https"} and host and not reserved:
                     self._link = {"url": absolute, "text_parts": []}
 
     def handle_endtag(self, tag):
