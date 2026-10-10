@@ -81,7 +81,7 @@ class ModelStore:
         if active is None:
             return {"version": None, "query": query, "matches": [], "note": "No knowledge release is active."}
         import re
-        tokens = set(re.findall(r"[^\\W_]+", query.casefold(), flags=re.UNICODE))
+        tokens = set(re.findall(r"[^\W_]+", query.casefold(), flags=re.UNICODE))
         matches = []
         with (Path(active["path"]) / "knowledge.jsonl").open("r", encoding="utf-8") as handle:
             for line in handle:
@@ -90,7 +90,7 @@ class ModelStore:
                 item = json.loads(line)
                 record = item["record"]
                 statement = record.get("statement", "")
-                record_tokens = set(re.findall(r"[^\\W_]+", statement.casefold(), flags=re.UNICODE))
+                record_tokens = set(re.findall(r"[^\W_]+", statement.casefold(), flags=re.UNICODE))
                 overlap = tokens & record_tokens
                 if not overlap and query.casefold() not in statement.casefold():
                     continue
