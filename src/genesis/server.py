@@ -93,6 +93,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, runtime.relation_learner.status())
         if path == "/api/relation-learning/templates":
             return self._json(200, runtime.relation_learner.templates())
+        if path == "/api/research/status":
+            return self._json(200, runtime.research.status())
+        if path == "/api/research/documents":
+            return self._json(200, runtime.research.list_documents(int(parse_qs(parsed.query).get("limit", ["50"])[0])))
         if path == "/api/knowledge":
             query = parse_qs(parsed.query).get("q", [""])[0]
             try:
@@ -108,6 +112,18 @@ class Handler(BaseHTTPRequestHandler):
             body = self._body()
             path = urlparse(self.path).path
             runtime = self.server.runtime
+            if path == "/api/research/search":
+                if not isinstance(body.get("query"), str):
+                    raise ValueError("query must be a string")
+                return self._json(200, runtime.research.search(body["query"], int(body.get("limit", 10))))
+            if path == "/api/research/fetch":
+                if not isinstance(body.get("url"), str):
+                    raise ValueError("url must be a string")
+                return self._json(200, runtime.research.fetch(body["url"], title=str(body.get("title", "")), search_id=body.get("search_id")))
+            if path == "/api/research/ingest":
+                if not isinstance(body.get("document_id"), str):
+                    raise ValueError("document_id must be a string")
+                return self._json(200, runtime.research.ingest(body["document_id"]))
             if path == "/api/observations":
                 if not isinstance(body.get("text"), str):
                     raise ValueError("text must be a string")
