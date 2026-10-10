@@ -11,7 +11,7 @@
 
 ## Commands
 
-Install the repository with python -m pip install -e ., then run genesis-workspace --help.
+Install the repository with python -m pip install -e ., then run genesis-workspace --help. Start the local interface with genesis-app and open http://127.0.0.1:8765 in the same device browser. The server binds to loopback only.
 
 - genesis-workspace status
 - genesis-workspace task-create "Investigate a topic and retain evidence"
@@ -23,6 +23,7 @@ Install the repository with python -m pip install -e ., then run genesis-workspa
 - genesis-workspace release-build --version 0.1.0 --output genesis-0.1.0.gmodel
 - genesis-workspace release-verify genesis-0.1.0.gmodel
 - genesis-workspace model-install genesis-0.1.0.gmodel
+- genesis-workspace knowledge-search "water freezes"
 
 Each contribution input line is a JSON object matching LearningContribution. It must include explicit consent, generalized=true, sensitivity=public, and evidence or a provenance reference. This is an eligibility contract, not proof personal data has been removed. Review content before export; software cannot reliably identify every secret or personal detail.
 
@@ -32,5 +33,5 @@ Each contribution input line is a JSON object matching LearningContribution. It 
 - Hashes do not authenticate the publisher. Publisher signatures, trusted key rotation, remote update metadata and delta packages are not implemented; do not treat untrusted packages as authenticated.
 - Trainer acceptance is an explicit human review state. The current trainer does not resolve semantic contradictions or independently establish truth.
 - Installed packages are immutable by version name; activation is atomic and previous versions remain available for rollback.
-- The package stores structured contributions. It is not a neural model or general-purpose natural-language generator. Existing grounded learning remains a narrow token/outcome association experiment.
+- The runtime can retrieve records from the active package by lexical overlap and display evidence references. This is transparent retrieval, not semantic reasoning. The package stores structured contributions; it is not a neural model or general-purpose natural-language generator. Existing grounded learning remains a narrow token/outcome association experiment.
 - No automatic network upload, hosted trainer server, update polling, Android APK, Windows installer, or Linux desktop package exists yet. Shared lifecycle and schemas are implemented as Python services/CLI first so native clients can share one contract.
