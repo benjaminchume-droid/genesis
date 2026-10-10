@@ -92,3 +92,33 @@ def test_local_api_exposes_concept_graph_and_cancellation(tmp_path):
         server.shutdown()
         server.server_close()
         thread.join(timeout=2)
+
+
+def test_executor_preserves_cancellation_requested_during_action(tmp_path):
+    import time
+
+    runtime = GenesisRuntime(tmp_path / "home")
+    task = runtime.tasks.create("cancel during action")
+    started = threading.Event()
+
+    def slow_action(args):
+        started.set()
+        time.sleep(0.15)
+        return {"finished": True}
+
+    runtime.executor._handlers["record_observation"] = slow_action
+    result_holder = {}
+
+    def run():
+        result_holder["result"] = runtime.executor.execute(
+            task["task_id"], [{"action": "record_observation", "text": "x"}])
+
+    worker = threading.Thread(target=run)
+    worker.start()
+    assert started.wait(timeout=2)
+    runtime.tasks.checkpoint(task["task_id"], status="cancelled",
+        data={"cancel_requested": True}, event="cancellation_requested")
+    worker.join(timeout=3)
+    assert not worker.is_alive()
+    assert result_holder["result"]["cancelled"] is True
+    assert runtime.tasks.get(task["task_id"])["status"] == "cancelled"
