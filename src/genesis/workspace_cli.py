@@ -10,6 +10,7 @@ from genesis.learning.contribution import LearningContribution, export_contribut
 from genesis.learning.concepts import ConceptRelationGraph
 from genesis.learning.evaluation import grouped_split, classification_metrics
 from genesis.learning.induction import ExperienceLearningEngine
+from genesis.learning.relation_induction import RelationFrameLearner
 from genesis.runtime.service import GenesisRuntime
 from genesis.trainer.ingest import TrainerStore
 from genesis.trainer.releases import build_release, verify_release
@@ -62,6 +63,11 @@ def parser():
     a = sub.add_parser("relation-search"); a.add_argument("--subject"); a.add_argument("--predicate"); a.add_argument("--limit", type=int, default=200)
     a = sub.add_parser("relation-compose"); a.add_argument("start"); a.add_argument("target"); a.add_argument("--max-depth", type=int, default=3); a.add_argument("--max-paths", type=int, default=20)
     a = sub.add_parser("relation-conflicts"); a.add_argument("--limit", type=int, default=100)
+    a = sub.add_parser("relation-example"); a.add_argument("--text", required=True); a.add_argument("--subject", required=True); a.add_argument("--predicate", required=True); a.add_argument("--object", required=True); a.add_argument("--evidence-id", required=True); a.add_argument("--source", required=True)
+    a = sub.add_parser("relation-import"); a.add_argument("dataset")
+    a = sub.add_parser("relation-fit"); a.add_argument("--min-support", type=int, default=2)
+    a = sub.add_parser("relation-extract"); a.add_argument("text")
+    sub.add_parser("relation-templates")
     a = sub.add_parser("task-run"); a.add_argument("task_id"); a.add_argument("--plan", required=True); a.add_argument("--no-resume", action="store_true"); a.add_argument("--max-steps", type=int, default=100); a.add_argument("--deadline-seconds", type=float, default=120)
     sub.add_parser("executor-capabilities")
     return p
@@ -138,6 +144,11 @@ def main(argv=None):
     elif args.command == "relation-search": result = runtime.concepts.relations(subject=args.subject, predicate=args.predicate, limit=args.limit)
     elif args.command == "relation-compose": result = runtime.concepts.compose(args.start, args.target, max_depth=args.max_depth, max_paths=args.max_paths)
     elif args.command == "relation-conflicts": result = runtime.concepts.conflicts(args.limit)
+    elif args.command == "relation-example": result = runtime.relation_learner.add_example(args.text, args.subject, args.predicate, args.object, evidence_id=args.evidence_id, source=args.source)
+    elif args.command == "relation-import": result = runtime.relation_learner.import_jsonl(args.dataset)
+    elif args.command == "relation-fit": result = runtime.relation_learner.fit(min_support=args.min_support)
+    elif args.command == "relation-extract": result = runtime.relation_learner.extract(args.text)
+    elif args.command == "relation-templates": result = {"status": runtime.relation_learner.status(), "templates": runtime.relation_learner.templates()}
     elif args.command == "task-run":
         plan = json.loads(Path(args.plan).read_text(encoding="utf-8"))
         result = runtime.executor.execute(args.task_id, plan, resume=not args.no_resume,
