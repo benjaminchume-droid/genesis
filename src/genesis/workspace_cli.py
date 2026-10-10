@@ -68,7 +68,7 @@ def parser():
     a = sub.add_parser("relation-fit"); a.add_argument("--min-support", type=int, default=2)
     a = sub.add_parser("relation-extract"); a.add_argument("text")
     sub.add_parser("relation-templates")
-    a = sub.add_parser("task-run"); a.add_argument("task_id"); a.add_argument("--plan", required=True); a.add_argument("--no-resume", action="store_true"); a.add_argument("--max-steps", type=int, default=100); a.add_argument("--deadline-seconds", type=float, default=120)
+    a = sub.add_parser("task-run"); a.add_argument("task_id"); a.add_argument("--plan", required=True); a.add_argument("--no-resume", action="store_true"); a.add_argument("--max-steps", type=int, default=100); a.add_argument("--deadline-seconds", type=float, default=120); a.add_argument("--action-timeout-seconds", type=float, default=30)
     sub.add_parser("executor-capabilities")
     return p
 
@@ -152,12 +152,12 @@ def main(argv=None):
     elif args.command == "task-run":
         plan = json.loads(Path(args.plan).read_text(encoding="utf-8"))
         result = runtime.executor.execute(args.task_id, plan, resume=not args.no_resume,
-            max_steps=args.max_steps, deadline_seconds=args.deadline_seconds)
+            max_steps=args.max_steps, deadline_seconds=args.deadline_seconds, action_timeout_seconds=args.action_timeout_seconds)
     elif args.command == "executor-capabilities":
         result = {"capabilities": runtime.executor.capabilities,
                   "budgets": {"max_actions": runtime.executor.MAX_ACTIONS,
                               "max_deadline_seconds": runtime.executor.MAX_DEADLINE_SECONDS,
-                              "deadline_semantics": "cooperative between registered actions; individual synchronous actions are not forcibly interrupted"},
+                              "deadline_semantics": "cooperative between actions", "action_timeout_semantics": "each registered action runs in a disposable worker process and is terminated on timeout or cancellation"},
                   "security": "Only registered actions are executable; plans cannot run arbitrary code."}
     else: return 2
     print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
