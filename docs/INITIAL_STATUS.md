@@ -13,6 +13,7 @@ This document records the actual scope of the first repository scaffold.
 - Explicit hypothesis records with confidence bounds, status, supporting observation references, and counterexample references.
 - Source-traceable claim records that remain unverified by default.
 - Declarative procedure specifications with preconditions, validation cases, and provenance.
+- SQLite persistence and retrieval for interpretation hypotheses and source-traceable claims.
 - Deterministic dataset splitting with a content fingerprint and exact-string deduplication.
 - CLI commands for observation, segmentation, statistics, recent records, and surface-pattern discovery.
 - Tests for the above primitives.
@@ -24,7 +25,7 @@ This document records the actual scope of the first repository scaffold.
 - Reliable intent or pragmatic inference.
 - Semantic parsing or grounded concepts.
 - A reasoning engine or world model.
-- Persistent storage for hypotheses, claims, and procedure specifications.
+- Persistent storage for procedure specifications (the current SQLite evidence store persists hypotheses and claims only).
 - A calibrated interpretation confidence model.
 - Web browsing, source extraction, or factual verification.
 - Acquired executable skills.
