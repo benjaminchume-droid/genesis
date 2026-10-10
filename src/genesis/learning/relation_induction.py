@@ -135,16 +135,24 @@ class RelationFrameLearner:
         if isinstance(min_support, bool) or not isinstance(min_support, int) or min_support < 1:
             raise ValueError("min_support must be at least 1")
         with self._connect() as db:
-            rows = db.execute("SELECT template, predicate, COUNT(*) AS support, GROUP_CONCAT(evidence_id) AS evidence FROM relation_examples GROUP BY template,predicate HAVING COUNT(*)>=? ORDER BY support DESC,template,predicate", (min_support,)).fetchall()
+            examples = db.execute("SELECT template, predicate, evidence_id FROM relation_examples ORDER BY template,predicate,example_id").fetchall()
+            grouped: dict[tuple[str, str], list[str]] = {}
+            for row in examples:
+                grouped.setdefault((row["template"], row["predicate"]), []).append(row["evidence_id"])
+            candidates = [
+                {"template": template, "predicate": predicate, "support": len(evidence),
+                 "evidence_ids": sorted(set(evidence))}
+                for (template, predicate), evidence in grouped.items() if len(evidence) >= min_support
+            ]
+            candidates.sort(key=lambda row: (-row["support"], row["template"], row["predicate"]))
             db.execute("DELETE FROM relation_templates")
             now = _now()
-            for row in rows:
+            for row in candidates:
                 db.execute("INSERT INTO relation_templates VALUES(?,?,?,?,?,?)",
                     (str(uuid4()), row["template"], row["predicate"], row["support"],
-                     json.dumps(sorted(set(row["evidence"].split(",")))), now))
-        return {"template_count": len(rows), "min_support": min_support,
-                "templates": [{"template": r["template"], "predicate": r["predicate"], "support": r["support"],
-                              "evidence_ids": sorted(set(r["evidence"].split(",")))} for r in rows],
+                     json.dumps(row["evidence_ids"]), now))
+        return {"template_count": len(candidates), "min_support": min_support,
+                "templates": candidates,
                 "note": "Induced frames are candidate extraction rules; they do not establish truth."}
 
     def templates(self) -> list[dict]:
