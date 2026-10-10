@@ -399,6 +399,15 @@ class WebResearch:
                 "providers": (["brave_web_api"] if os.environ.get("GENESIS_BRAVE_SEARCH_API_KEY", "").strip() else []) + ["duckduckgo_html", "mediawiki_rest"], "fetch_max_bytes": MAX_PAGE_BYTES,
                 "page_text_limit": MAX_TEXT_CHARS, "automatic_fact_promotion": False}
 
+    def get_document(self, document_id: str) -> dict:
+        if not isinstance(document_id, str) or not document_id.strip():
+            raise ValueError("document_id must be a non-empty string")
+        with self._connect() as db:
+            row = db.execute("SELECT * FROM documents WHERE document_id=?", (document_id,)).fetchone()
+        if row is None:
+            raise KeyError(f"unknown research document: {document_id}")
+        return dict(row)
+
     def list_documents(self, limit: int = 50) -> list[dict]:
         if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 200:
             raise ValueError("limit must be 1..200")
