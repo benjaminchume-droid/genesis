@@ -8,7 +8,7 @@ from __future__ import annotations
 import math
 import re
 from collections import Counter
-from typing import Any
+from typing import Any\n\nfrom genesis.dialogue.understanding import understand
 
 _TOKEN = re.compile(r"[^\W_]+", re.UNICODE)
 _SENTENCE = re.compile(r"(?<=[.!?])\s+|[\r\n]+")
@@ -169,7 +169,7 @@ class GroundedResponseEngine:
             outcome = "abstained"
 
         return {
-            "query": query, "answer": answer, "outcome": outcome,
+            "query": query, "answer": answer, "outcome": outcome,\n            "understanding": understand(query),
             "evidence": selected[:max_excerpts],
             "sources": [{"index": i, "title": item["title"], "url": item["url"],
                          "evidence_kind": item["evidence_kind"], "score": item["score"]}
