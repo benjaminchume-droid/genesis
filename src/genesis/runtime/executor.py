@@ -77,7 +77,7 @@ class TaskExecutor:
         return {"observation_count": report.observation_count, "candidate_count": report.candidate_count, "candidates": [{"text": item.text, "occurrences": item.occurrences, "left_contexts": item.left_contexts, "right_contexts": item.right_contexts, "observation_indices": item.observation_indices} for item in report.candidates], "note": "Surface regularities only; not assigned meanings."}
 
     def _learn_from_jsonl(self, args):
-        return self.runtime.learning.import_jsonl(args["path"])
+        imported = self.runtime.learning.import_jsonl(args["path"])\n        learned = self.runtime.learning.learn()\n        return {"import": imported, "learning": learned}
 
     def _predict(self, args):
         return self.runtime.learning.predict(args["text"], min_margin=float(args.get("min_margin", 0.15)))
