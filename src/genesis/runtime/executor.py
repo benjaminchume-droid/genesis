@@ -9,10 +9,30 @@ from __future__ import annotations
 
 import json
 import math
+import multiprocessing
 import time
 from typing import Any, Callable
 
 from genesis.learning.concepts import ConceptRelationGraph
+
+
+def _isolated_action_worker(home: str, action: str, args: dict[str, Any], connection) -> None:
+    """Run one registered action in a disposable process for enforceable timeouts."""
+    try:
+        from genesis.runtime.service import GenesisRuntime
+        runtime = GenesisRuntime(home)
+        handler = TaskExecutor(runtime)._handlers.get(action)
+        if handler is None:
+            raise ValueError(f"unregistered action: {action}")
+        output = handler(args)
+        connection.send(json.dumps({"ok": True, "output": output}, ensure_ascii=False, default=str))
+    except BaseException as exc:
+        try:
+            connection.send(json.dumps({"ok": False, "error_type": type(exc).__name__, "error": str(exc)}))
+        except BaseException:
+            pass
+    finally:
+        connection.close()
 
 
 class TaskExecutor:
@@ -105,13 +125,18 @@ class TaskExecutor:
         return action, args
 
     def execute(self, task_id: str, plan: list[dict[str, Any]], *, resume: bool = True,
-                max_steps: int = 100, deadline_seconds: float = 120.0) -> dict:
+                max_steps: int = 100, deadline_seconds: float = 120.0,
+                action_timeout_seconds: float = 30.0, isolated_actions: bool = True) -> dict:
         if not isinstance(plan, list) or not plan:
             raise ValueError("plan must be a non-empty list of action objects")
         if isinstance(max_steps, bool) or not isinstance(max_steps, int) or not 1 <= max_steps <= self.MAX_ACTIONS:
             raise ValueError(f"max_steps must be 1..{self.MAX_ACTIONS}")
         if isinstance(deadline_seconds, bool) or not isinstance(deadline_seconds, (int, float)) or not math.isfinite(deadline_seconds) or not 0.1 <= deadline_seconds <= self.MAX_DEADLINE_SECONDS:
             raise ValueError(f"deadline_seconds must be 0.1..{self.MAX_DEADLINE_SECONDS}")
+        if isinstance(action_timeout_seconds, bool) or not isinstance(action_timeout_seconds, (int, float)) or not math.isfinite(action_timeout_seconds) or not 0.1 <= action_timeout_seconds <= 120.0:
+            raise ValueError("action_timeout_seconds must be 0.1..120")
+        if not isinstance(isolated_actions, bool):
+            raise ValueError("isolated_actions must be a boolean")
         if len(plan) > max_steps:
             raise ValueError("plan exceeds max_steps execution budget")
         task = self.runtime.tasks.get(task_id)
@@ -159,7 +184,10 @@ class TaskExecutor:
                 return {"task": paused, "outputs": outputs, "capabilities": self.capabilities,
                         "deadline_exceeded": True}
             try:
-                output = self._handlers[action](args)
+                if isolated_actions:
+                    output = self._run_isolated(action, args, float(action_timeout_seconds))
+                else:
+                    output = self._handlers[action](args)
                 outputs.append({"step": index, "action": action, "output": output})
                 completed.append(index)
                 progress = len(completed) / len(plan)
@@ -184,6 +212,33 @@ class TaskExecutor:
             data={"completed_steps": completed, "outputs": outputs}, event="execution_completed")
         return {"task": final, "outputs": outputs, "capabilities": self.capabilities,
                 "deadline_seconds": float(deadline_seconds)}
+
+    def _run_isolated(self, action: str, args: dict[str, Any], timeout: float) -> Any:
+        """Run an action in a child process and terminate it if its timeout expires."""
+        context = multiprocessing.get_context("spawn")
+        parent, child = context.Pipe(duplex=False)
+        process = context.Process(target=_isolated_action_worker,
+            args=(str(self.runtime.home), action, args, child), daemon=True)
+        process.start()
+        child.close()
+        try:
+            if not parent.poll(timeout):
+                process.terminate()
+                process.join(timeout=2)
+                raise TimeoutError(f"action {action!r} exceeded {timeout:.3f}s timeout and was terminated")
+            message = json.loads(parent.recv())
+            process.join(timeout=2)
+            if process.is_alive():
+                process.terminate()
+                process.join(timeout=2)
+            if not message.get("ok"):
+                raise RuntimeError(f"{message.get('error_type', 'ActionError')}: {message.get('error', 'action failed')}")
+            return message.get("output")
+        finally:
+            parent.close()
+            if process.is_alive():
+                process.terminate()
+                process.join(timeout=2)
 
     def _record_observation(self, args):
         return self.runtime.observe(args["text"], args.get("source", "execution"))
