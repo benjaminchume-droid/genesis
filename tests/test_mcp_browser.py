@@ -46,10 +46,30 @@ def test_mcp_initialize_and_tools_list(tmp_path):
     assert init["result"]["serverInfo"]["name"] == "genesis-browser"
     listing = server.handle({"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}})
     names = {tool["name"] for tool in listing["result"]["tools"]}
-    assert {"search_web","open_page","follow_page_link","research_topic","save_page_to_research"} <= names
+    assert {"search_web","open_page","follow_page_link","research_topic","save_page_to_research","record_learning_experience","predict_from_experience","search_knowledge","compose_relations","runtime_status"} <= names
 
 
 def test_mcp_tool_errors_are_structured(tmp_path):
     server = GenesisMCPServer(str(tmp_path / "home"))
     result = server.handle({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"not-a-tool","arguments":{}}})
     assert result["result"]["isError"] is True
+
+
+
+def test_mcp_learning_tools_persist_and_predict(tmp_path):
+    server = GenesisMCPServer(str(tmp_path / "home"))
+    for text in ("orchid has petals", "orchid has petals", "tulip has petals", "tulip has petals"):
+        server.call_tool("record_learning_experience", {"text": text, "outcome": "botany"})
+    result = server.call_tool("predict_from_experience", {"text": "orchid has petals"})
+    assert result["outcome"] == "botany"
+    status = server.call_tool("runtime_status", {})
+    assert status["learning"]["experience_count"] == 4
+
+
+def test_mcp_concept_relation_tools_expose_graph(tmp_path):
+    server = GenesisMCPServer(str(tmp_path / "home"))
+    server.runtime.concepts.assert_relation("oak", "is_a", "tree", evidence_id="ev-1", source="test")
+    result = server.call_tool("search_relations", {"subject": "oak"})
+    assert result
+    composed = server.call_tool("compose_relations", {"start": "oak", "target": "tree"})
+    assert composed
