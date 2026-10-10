@@ -46,3 +46,15 @@ Declarative executor capabilities:
 - `web_ingest`
 
 The executor still enforces registered actions, schemas, step budgets and action timeouts. It cannot execute code from a page.
+
+## Candidate claim review
+
+Ingestion also segments a bounded number of readable sentences into **unverified candidate claims**. This is a generic extraction heuristic, not a semantic verifier. Candidates retain their source document and URL, and the ledger reports how many distinct source URLs contain an exactly normalized matching sentence. Matching text is only a corroboration lead; copied content and syndicated reporting are not independent confirmation.
+
+- `genesis-workspace web-claims --status pending`
+- `genesis-workspace web-claim-review CLAIM_ID --status reviewed_supported --note "Reviewed against sources"`
+- `genesis-workspace web-claim-review CLAIM_ID --status rejected --note "Contradicted by primary source"`
+- `GET /api/research/claims?status=pending&limit=100`
+- `POST /api/research/claims/CLAIM_ID/review` with `{"status":"reviewed_supported","note":"review rationale"}`
+
+Review status is an explicit human action. It does not silently create a concept-graph assertion or supervised learning label.
