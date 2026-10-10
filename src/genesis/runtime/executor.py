@@ -32,6 +32,8 @@ class TaskExecutor:
             "relation_search": self._relation_search,
             "relation_compose": self._relation_compose,
             "relation_conflicts": self._relation_conflicts,
+            "relation_extract": self._relation_extract,
+            "relation_import_fit": self._relation_import_fit,
         }
         self._schemas = {
             "record_observation": ({"text"}, {"text", "source"}),
@@ -45,6 +47,8 @@ class TaskExecutor:
             "relation_search": (set(), {"subject", "predicate", "limit"}),
             "relation_compose": ({"start", "target"}, {"start", "target", "max_depth", "max_paths"}),
             "relation_conflicts": (set(), {"limit"}),
+            "relation_extract": ({"text"}, {"text"}),
+            "relation_import_fit": ({"path"}, {"path", "min_support"}),
         }
 
     @property
@@ -92,10 +96,12 @@ class TaskExecutor:
                 raise ValueError("relation_compose bounds are max_depth 1..6 and max_paths 1..100")
         if action == "relation_conflicts" and not 1 <= args.get("limit", 100) <= 1000:
             raise ValueError("relation_conflicts.limit must be 1..1000")
-        if action == "learn_from_jsonl":
-            # This capability reads a local file, not a remote URL or executable artifact.
+        if action in {"learn_from_jsonl", "relation_import_fit"}:
+            # These capabilities read local data, not remote URLs or executable artifacts.
             if "://" in args["path"]:
-                raise ValueError("learn_from_jsonl accepts a local path, not a URL")
+                raise ValueError(f"{action} accepts a local path, not a URL")
+        if action == "relation_import_fit" and (isinstance(args.get("min_support", 2), bool) or not isinstance(args.get("min_support", 2), int) or args.get("min_support", 2) < 1):
+            raise ValueError("relation_import_fit.min_support must be an integer >= 1")
         return action, args
 
     def execute(self, task_id: str, plan: list[dict[str, Any]], *, resume: bool = True,
@@ -222,3 +228,11 @@ class TaskExecutor:
 
     def _relation_conflicts(self, args):
         return self._graph().conflicts(limit=int(args.get("limit", 100)))
+
+    def _relation_extract(self, args):
+        return self.runtime.relation_learner.extract(args["text"])
+
+    def _relation_import_fit(self, args):
+        imported = self.runtime.relation_learner.import_jsonl(args["path"])
+        fitted = self.runtime.relation_learner.fit(min_support=int(args.get("min_support", 2)))
+        return {"import": imported, "fit": fitted}
