@@ -59,7 +59,7 @@ Exit criteria:
 - The system is not credited with semantics from surface statistics alone.
 
 ## Stage 2B: Experience induction and bounded execution
-Status: first persistent symbolic induction baseline and allowlisted task executor implemented; broader concept learning and autonomous planning remain incomplete.
+Status: persistent symbolic induction, an explicit evidence-grounded concept/relation graph, grouped evaluation utilities, and a schema-checked bounded executor are implemented. Open-domain language-to-concept extraction and fully autonomous planning remain research work.
 
 Implemented:
 - Persistent labelled experiences and induced rules in SQLite.
@@ -185,3 +185,4 @@ Exit criteria:
 ## Release policy
 
 Do not label a milestone complete because the files exist. Require passing tests, benchmark results, documented failure cases, and a clear statement of what remains unimplemented.
+\n\n## Stage 2C: Evidence-grounded concept graph and evaluation controls\nStatus: implementation baseline complete; independent benchmark validation remains incomplete.\n\nImplemented:\n- Persistent concept records and explicit surface mentions with provenance.\n- Relation assertions with source, evidence identifier, context, polarity, and optional linked object concept.\n- Explicitly scoped contradiction tracking for exclusive predicates.\n- Bounded relation-path composition that returns provenance for every edge.\n- Group-aware train/test splitting that requires a supplied source/paraphrase group and rejects missing group labels.\n- Abstention-aware coverage, selective accuracy, and per-class precision/recall/F1 metrics.\n- CLI and loopback API access to concepts, relations, composition, conflicts, and grouped evaluation.\n- Per-action schemas, argument validation, action-count limits, cooperative deadlines, and cancellation checks between executor actions.\n\nRemaining:\n- Automatic language-to-relation extraction with evidence spans and evaluation for negation, ambiguity, context, and reference.\n- A genuinely independent benchmark with published data lineage, hashes, multiple seeds, baselines, error analysis, and confidence intervals.\n- Hard action timeouts and safe preemptive cancellation using isolated worker processes.\n- A planner that converts open-ended natural-language objectives into validated action plans without hidden hard-coded routes.\n\nExit criteria:\n- Relation candidates beat stated baselines on held-out grouped data.\n- Contradictions are surfaced without automatically treating every multi-valued relation as a conflict.\n- Every composed path is traceable to the assertions and sources that produced it.\n- Execution limits and their cooperative versus preemptive semantics are explicit and tested.\n
