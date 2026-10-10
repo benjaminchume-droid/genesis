@@ -11,8 +11,9 @@ import android.webkit.WebViewClient
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import android.content.Intent
+import android.net.Uri
 import android.graphics.Color
-import androidx.activity.OnBackPressedCallback
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
 import java.util.concurrent.Executors
@@ -32,11 +33,7 @@ class MainActivity : Activity() {
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
         createShell()
         startRuntime()
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                if (::webView.isInitialized && webView.canGoBack()) webView.goBack() else finish()
-            }
-        })
+
     }
 
     private fun createShell() {
@@ -91,11 +88,20 @@ class MainActivity : Activity() {
         webView.webChromeClient = WebChromeClient()
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
-                return !url.startsWith("http://127.0.0.1:8765/") && !url.startsWith("https://")
+                if (url.startsWith("http://127.0.0.1:8765/")) return false
+                if (url.startsWith("https://")) {
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                }
+                return true
             }
         }
         root.addView(webView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         webView.loadUrl("http://127.0.0.1:8765/")
+    }
+
+    @Deprecated("Use system back navigation")
+    override fun onBackPressed() {
+        if (::webView.isInitialized && webView.canGoBack()) webView.goBack() else super.onBackPressed()
     }
 
     private fun showError(message: String) {
