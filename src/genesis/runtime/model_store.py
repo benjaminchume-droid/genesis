@@ -70,6 +70,34 @@ class ModelStore:
         os.replace(temporary, self.active_file)
         return {"active_version": version}
 
+    def search_knowledge(self, query: str, limit: int = 20) -> dict[str, Any]:
+        """Transparent lexical retrieval over the active release, not semantic reasoning."""
+        query = query.strip()
+        if not query:
+            raise ValueError("query must not be empty")
+        if not 1 <= limit <= 100:
+            raise ValueError("limit must be 1..100")
+        active = self.active()
+        if active is None:
+            return {"version": None, "query": query, "matches": [], "note": "No knowledge release is active."}
+        import re
+        tokens = set(re.findall(r"[^\\W_]+", query.casefold(), flags=re.UNICODE))
+        matches = []
+        with (Path(active["path"]) / "knowledge.jsonl").open("r", encoding="utf-8") as handle:
+            for line in handle:
+                if not line.strip():
+                    continue
+                item = json.loads(line)
+                record = item["record"]
+                statement = record.get("statement", "")
+                record_tokens = set(re.findall(r"[^\\W_]+", statement.casefold(), flags=re.UNICODE))
+                overlap = tokens & record_tokens
+                if not overlap and query.casefold() not in statement.casefold():
+                    continue
+                matches.append({"statement": statement, "kind": record.get("kind"), "content_hash": item["content_hash"], "source_ref": record.get("source_ref", ""), "evidence": record.get("evidence", []), "matched_tokens": sorted(overlap), "score": len(overlap) + (len(tokens) + 1 if query.casefold() in statement.casefold() else 0)})
+        matches.sort(key=lambda item: (-item["score"], item["content_hash"]))
+        return {"version": active["version"], "query": query, "matches": matches[:limit], "note": "Lexical retrieval only. Matches are candidate records, not proof that the query and record mean the same thing."}
+
     def list_versions(self) -> list[dict[str, Any]]:
         result = []
         for path in sorted(self.versions.iterdir()):
