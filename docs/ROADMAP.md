@@ -185,4 +185,55 @@ Exit criteria:
 ## Release policy
 
 Do not label a milestone complete because the files exist. Require passing tests, benchmark results, documented failure cases, and a clear statement of what remains unimplemented.
-\n\n## Stage 2C: Evidence-grounded concept graph and evaluation controls\nStatus: implementation baseline complete; independent benchmark validation remains incomplete.\n\nImplemented:\n- Persistent concept records and explicit surface mentions with provenance.\n- Relation assertions with source, evidence identifier, context, polarity, and optional linked object concept.\n- Explicitly scoped contradiction tracking for exclusive predicates.\n- Bounded relation-path composition that returns provenance for every edge.\n- Group-aware train/test splitting that requires a supplied source/paraphrase group and rejects missing group labels.\n- Abstention-aware coverage, selective accuracy, and per-class precision/recall/F1 metrics.\n- CLI and loopback API access to concepts, relations, composition, conflicts, and grouped evaluation.\n- Per-action schemas, argument validation, action-count limits, cooperative deadlines, and cancellation checks between executor actions.\n\nRemaining:\n- Robust open-domain language-to-relation extraction with evidence spans and evaluation for negation, ambiguity, context, and reference. An example-driven lexical-frame candidate generator is now implemented, but is not a general semantic parser.\n- A genuinely independent benchmark with published data lineage, hashes, multiple seeds, baselines, error analysis, and confidence intervals.\n- Hard action timeouts and safe preemptive cancellation using isolated worker processes.\n- A planner that converts open-ended natural-language objectives into validated action plans without hidden hard-coded routes.\n\nExit criteria:\n- Relation candidates beat stated baselines on held-out grouped data.\n- Contradictions are surfaced without automatically treating every multi-valued relation as a conflict.\n- Every composed path is traceable to the assertions and sources that produced it.\n- Execution limits and their cooperative versus preemptive semantics are explicit and tested.\n
+
+
+## Stage 2C: Evidence-grounded concept graph and evaluation controls
+
+Status: implementation baseline complete; independent benchmark validation remains incomplete.
+
+Implemented:
+- Persistent concept records and explicit surface mentions with provenance.
+- Relation assertions with source, evidence identifier, context, polarity, and optional linked object concept.
+- Explicitly scoped contradiction tracking for exclusive predicates.
+- Bounded relation-path composition that returns provenance for every edge.
+- Group-aware train/test splitting that requires a supplied source/paraphrase group and rejects missing group labels.
+- Abstention-aware coverage, selective accuracy, and per-class precision/recall/F1 metrics.
+- CLI and loopback API access to concepts, relations, composition, conflicts, and grouped evaluation.
+- Per-action schemas, argument validation, action-count limits, cooperative deadlines, and cancellation checks between executor actions.
+
+Remaining:
+- Robust open-domain language-to-relation extraction with evidence spans and evaluation for negation, ambiguity, context, and reference. The example-driven lexical-frame candidate generator is not a general semantic parser.
+- A genuinely independent benchmark with published data lineage, hashes, multiple seeds, baselines, error analysis, and confidence intervals.
+- A planner that converts open-ended natural-language objectives into validated action plans without hidden hard-coded routes.
+
+## Stage 2D: Live web research, evidence intake, and grounded response
+
+Status: implemented research and extractive response baseline; broad semantic interpretation and verification remain incomplete.
+
+Implemented:
+- Live general-web search through a keyless DuckDuckGo HTML integration, an official MediaWiki REST fallback, and optional Brave Search API via `GENESIS_BRAVE_SEARCH_API_KEY`.
+- Search provenance records with query, provider, result URLs, snippets, timestamps, and search IDs.
+- Bounded HTTP(S) retrieval, redirect-target validation, local/private IP blocking, response-size limits, readable-text extraction, and content hashes.
+- Persistent research documents and source-linked observations.
+- Unverified candidate-sentence ledger with source URLs, exact-text source counts, and explicit human review states.
+- Web research CLI, local API, browser UI, and registered executor actions.
+- Grounded response assembly from matching retrieved sentences and installed knowledge records, with source URLs, lexical relevance scores, and abstention when no evidence matches.
+- Optional source ingestion during a web-enabled response.
+
+Not implemented:
+- A complete general-web search index without an external provider, provider-independent uptime guarantees, or comprehensive coverage of paywalled and dynamically rendered sites.
+- Reliable semantic claim extraction, independent-source detection beyond exact normalized text, automatic truth verification, or causal reasoning.
+- Free-form natural-language generation or human-level open-domain understanding. The response engine quotes matching evidence; it does not produce unrestricted paraphrases.
+- Autonomous research planning, adaptive source selection, and evidence-driven self-correction across long research campaigns.
+
+Safety and epistemic policy:
+- Search results are leads, not facts.
+- Retrieved page text is untrusted data and is never executed.
+- Sentence candidates remain unverified until reviewed. A reviewed sentence does not automatically become a concept-graph assertion or a supervised training label.
+- Lexical relevance scores are not calibrated confidence values.
+
+Exit criteria:
+- Live-provider smoke tests and offline deterministic tests pass.
+- Search/fetch failures are reported without fabricating successful results.
+- Every ingested observation and candidate claim retains source provenance.
+- Evaluation demonstrates improvement on held-out, independently sourced language tasks before broader capability claims.
