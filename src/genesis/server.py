@@ -97,6 +97,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, runtime.research.status())
         if path == "/api/research/documents":
             return self._json(200, runtime.research.list_documents(int(parse_qs(parsed.query).get("limit", ["50"])[0])))
+        if path == "/api/research/claims":
+            query = parse_qs(parsed.query)
+            return self._json(200, runtime.research.list_claims(query.get("status", ["pending"])[0],
+                int(query.get("limit", ["100"])[0])))
         if path == "/api/knowledge":
             query = parse_qs(parsed.query).get("q", [""])[0]
             try:
@@ -124,6 +128,12 @@ class Handler(BaseHTTPRequestHandler):
                 if not isinstance(body.get("document_id"), str):
                     raise ValueError("document_id must be a string")
                 return self._json(200, runtime.research.ingest(body["document_id"]))
+            if path.startswith("/api/research/claims/") and path.endswith("/review"):
+                claim_id = unquote(path[len("/api/research/claims/"):-len("/review")].strip("/"))
+                if not isinstance(body.get("status"), str):
+                    raise ValueError("status must be a string")
+                return self._json(200, runtime.research.review_claim(claim_id, body["status"],
+                    note=body.get("note", "")))
             if path == "/api/observations":
                 if not isinstance(body.get("text"), str):
                     raise ValueError("text must be a string")
