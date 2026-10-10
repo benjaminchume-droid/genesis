@@ -28,7 +28,7 @@ def build_release(store: TrainerStore, destination: str | Path, *, version: str,
             seen.add(item.content_hash)
             records.append({"content_hash": item.content_hash, "record": item.to_dict()})
     records.sort(key=lambda r: r["content_hash"])
-    knowledge = b"\\n".join(canonical_json(r) for r in records) + b"\\n"
+    knowledge = b"\n".join(canonical_json(r) for r in records) + b"\n"
     manifest = {
         "format": "genesis-knowledge-release", "schema_version": RELEASE_SCHEMA,
         "version": version, "parent_version": parent_version,
