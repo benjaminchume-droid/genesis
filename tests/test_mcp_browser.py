@@ -46,7 +46,7 @@ def test_mcp_initialize_and_tools_list(tmp_path):
     assert init["result"]["serverInfo"]["name"] == "genesis-browser"
     listing = server.handle({"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}})
     names = {tool["name"] for tool in listing["result"]["tools"]}
-    assert {"search_web","open_page","follow_page_link","research_topic","save_page_to_research","record_learning_experience","predict_from_experience","search_knowledge","compose_relations","runtime_status"} <= names
+    assert {"search_web","open_page","follow_page_link","research_topic","save_page_to_research","record_learning_experience","predict_from_experience","search_knowledge","compose_relations","runtime_status","research_iteratively"} <= names
 
 
 def test_mcp_tool_errors_are_structured(tmp_path):
