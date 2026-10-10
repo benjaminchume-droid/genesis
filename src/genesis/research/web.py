@@ -77,6 +77,10 @@ class _SafeRedirect(HTTPRedirectHandler):
             _public_http_url(newurl)
         except ValueError:
             return None
+        # Never forward API credentials to a different host.
+        carries_secret = any(key.casefold() == "x-subscription-token" for key in req.headers)
+        if carries_secret and urlparse(req.full_url).hostname != urlparse(newurl).hostname:
+            return None
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
