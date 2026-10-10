@@ -97,7 +97,7 @@ class ExperienceLearningEngine:
         db.row_factory = sqlite3.Row
         return db
 
-    def add_experience(self, text: str, outcome: str, *, source: str = "user-feedback", experience_id: str | None = None) -> Experience:
+    def add_experience(self, text: str, outcome: str, *, source: str = "user-feedback", experience_id: str | None = None, relearn: bool = True) -> Experience:
         if not isinstance(outcome, str) or not outcome.strip():
             raise ValueError("outcome must be non-empty")
         if not isinstance(source, str) or not source.strip():
@@ -117,7 +117,7 @@ class ExperienceLearningEngine:
                     continue
                 try:
                     row = json.loads(line)
-                    self.add_experience(row[text_field], row[outcome_field], source=str(row.get("source", path)), experience_id=str(row.get("id") or uuid4()))
+                    self.add_experience(row[text_field], row[outcome_field], source=str(row.get("source", path)), experience_id=str(row.get("id") or uuid4()), relearn=False)
                 except (json.JSONDecodeError, KeyError, TypeError, ValueError, sqlite3.IntegrityError) as exc:
                     raise ValueError(f"invalid or duplicate experience at {path}:{line_no}: {exc}") from exc
                 imported += 1
