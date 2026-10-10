@@ -31,6 +31,7 @@ def parser():
     a=sub.add_parser("learn-fit"); a.add_argument("--min-support",type=int,default=2); a.add_argument("--min-precision",type=float,default=0.75)
     a=sub.add_parser("learn-predict"); a.add_argument("text"); a.add_argument("--min-margin",type=float,default=0.15)
     sub.add_parser("learn-rules")
+    a=sub.add_parser("learn-history"); a.add_argument("--limit",type=int,default=100)
     a=sub.add_parser("learn-evaluate"); a.add_argument("dataset"); a.add_argument("--min-margin",type=float,default=0.15)
     a=sub.add_parser("task-run"); a.add_argument("task_id"); a.add_argument("--plan",required=True); a.add_argument("--no-resume",action="store_true")
     sub.add_parser("executor-capabilities")
@@ -66,6 +67,7 @@ def main(argv=None):
     elif args.command=="learn-fit": result=runtime.learning.learn(min_support=args.min_support,min_precision=args.min_precision)
     elif args.command=="learn-predict": result=runtime.learning.predict(args.text,min_margin=args.min_margin)
     elif args.command=="learn-rules": result={"status":runtime.learning.status(),"rules":[r.__dict__ if hasattr(r,"__dict__") else {"rule_id":r.rule_id,"feature":r.feature,"outcome":r.outcome,"support":r.support,"counterexamples":r.counterexamples,"precision":r.precision,"evidence_ids":r.evidence_ids,"counterexample_ids":r.counterexample_ids} for r in runtime.learning.rules()]}
+    elif args.command=="learn-history": result=runtime.learning.history(args.limit)
     elif args.command=="learn-evaluate":
         rows=[]
         for number,line in enumerate(Path(args.dataset).read_text(encoding="utf-8").splitlines(),1):
