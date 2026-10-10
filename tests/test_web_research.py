@@ -163,3 +163,20 @@ def test_ingestion_creates_unverified_claim_candidates_and_review_is_explicit(tm
     assert reviewed["status"] == "reviewed_supported"
     assert reviewed["review_note"] == "Manually reviewed"
     assert runtime.research.list_claims("pending") != [reviewed]
+
+def test_brave_search_adapter_uses_configured_secret_without_returning_it(monkeypatch):
+    monkeypatch.setenv("GENESIS_BRAVE_SEARCH_API_KEY", "test-secret-token")
+    captured = {}
+    payload = json.dumps({"web": {"results": [
+        {"title": "Brave result", "url": "https://example.com/article", "description": "A source snippet"}
+    ]}}).encode()
+    def fake_get(url, *, max_bytes=2_000_000, headers=None):
+        captured["url"] = url
+        captured["headers"] = headers
+        return payload, "application/json", "utf-8"
+    monkeypatch.setattr("genesis.research.web._http_get", fake_get)
+    results = WebResearch._brave_search("test query", 5)
+    assert "q=test+query" in captured["url"]
+    assert captured["headers"]["X-Subscription-Token"] == "test-secret-token"
+    assert results[0]["provider"] == "brave_web_api"
+    assert "test-secret-token" not in json.dumps(results)
