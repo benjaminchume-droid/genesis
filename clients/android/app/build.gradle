@@ -34,12 +34,8 @@ android {
     }
 }
 
-python {
-    version = '3.11'
-}
-
-sourceSets {
-    main {
-        python.srcDir 'src/main/python'
+chaquopy {
+    defaultConfig {
+        version = '3.11'
     }
 }
