@@ -1,16 +1,24 @@
 """Bounded execution loop for registered, auditable Genesis capabilities.
 
 Plans are declarative data. They cannot name arbitrary Python functions, run
-shell commands, or execute downloaded code. Every step is checkpointed.
+shell commands, or execute downloaded code. Every step is schema-checked and
+checkpointed. Deadlines are cooperative between actions; Python handlers are not
+pretended to be forcibly interruptible.
 """
 from __future__ import annotations
 
 import json
-from pathlib import Path
+import math
+import time
 from typing import Any, Callable
+
+from genesis.learning.concepts import ConceptRelationGraph
 
 
 class TaskExecutor:
+    MAX_ACTIONS = 100
+    MAX_DEADLINE_SECONDS = 600.0
+
     def __init__(self, runtime):
         self.runtime = runtime
         self._handlers: dict[str, Callable[[dict[str, Any]], Any]] = {
@@ -19,51 +27,143 @@ class TaskExecutor:
             "learn_from_jsonl": self._learn_from_jsonl,
             "predict": self._predict,
             "knowledge_search": self._knowledge_search,
+            "concept_add": self._concept_add,
+            "relation_assert": self._relation_assert,
+            "relation_search": self._relation_search,
+            "relation_compose": self._relation_compose,
+            "relation_conflicts": self._relation_conflicts,
+        }
+        self._schemas = {
+            "record_observation": ({"text"}, {"text", "source"}),
+            "discover_patterns": (set(), {"min_length", "max_length", "min_occurrences", "limit"}),
+            "learn_from_jsonl": ({"path"}, {"path"}),
+            "predict": ({"text"}, {"text", "min_margin"}),
+            "knowledge_search": ({"query"}, {"query", "limit"}),
+            "concept_add": ({"label"}, {"label", "surface", "evidence_id", "source"}),
+            "relation_assert": ({"subject", "predicate", "object_value", "evidence_id", "source"},
+                                {"subject", "predicate", "object_value", "object_concept", "polarity", "exclusive", "evidence_id", "source", "context"}),
+            "relation_search": (set(), {"subject", "predicate", "limit"}),
+            "relation_compose": ({"start", "target"}, {"start", "target", "max_depth", "max_paths"}),
+            "relation_conflicts": (set(), {"limit"}),
         }
 
     @property
     def capabilities(self) -> tuple[str, ...]:
         return tuple(sorted(self._handlers))
 
-    def execute(self, task_id: str, plan: list[dict[str, Any]], *, resume: bool = True) -> dict:
+    def _validate_step(self, step: dict[str, Any], index: int) -> tuple[str, dict[str, Any]]:
+        action = step.get("action")
+        if not isinstance(action, str) or action not in self._handlers:
+            raise ValueError(f"unregistered action at step {index}: {action}")
+        required, allowed = self._schemas[action]
+        args = {key: value for key, value in step.items() if key != "action"}
+        unknown = set(args) - allowed
+        missing = required - set(args)
+        if unknown:
+            raise ValueError(f"unknown arguments for {action}: {', '.join(sorted(unknown))}")
+        if missing:
+            raise ValueError(f"missing arguments for {action}: {', '.join(sorted(missing))}")
+        for key, value in args.items():
+            if key in {"text", "query", "path", "label", "surface", "evidence_id", "source",
+                       "subject", "predicate", "object_value", "object_concept", "context", "start", "target"}:
+                if not isinstance(value, str):
+                    raise ValueError(f"{action}.{key} must be a string")
+            elif key in {"min_length", "max_length", "min_occurrences", "limit", "max_depth", "max_paths"}:
+                if isinstance(value, bool) or not isinstance(value, int):
+                    raise ValueError(f"{action}.{key} must be an integer")
+            elif key in {"min_margin", "min_precision"}:
+                if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+                    raise ValueError(f"{action}.{key} must be a finite number")
+            elif key in {"polarity", "exclusive"} and not isinstance(value, bool):
+                raise ValueError(f"{action}.{key} must be a boolean")
+        if action == "discover_patterns":
+            if not 1 <= args.get("min_length", 2) <= args.get("max_length", 4) <= 20:
+                raise ValueError("discover_patterns requires 1 <= min_length <= max_length <= 20")
+            if not 1 <= args.get("min_occurrences", 2) <= 10000 or not 1 <= args.get("limit", 50) <= 100:
+                raise ValueError("discover_patterns bounds are min_occurrences 1..10000 and limit 1..100")
+        if action == "knowledge_search" and not 1 <= args.get("limit", 20) <= 100:
+            raise ValueError("knowledge_search.limit must be 1..100")
+        if action == "predict" and not 0 <= args.get("min_margin", 0.15) <= 1:
+            raise ValueError("predict.min_margin must be between 0 and 1")
+        if action == "relation_search" and not 1 <= args.get("limit", 200) <= 1000:
+            raise ValueError("relation_search.limit must be 1..1000")
+        if action == "relation_compose":
+            if not 1 <= args.get("max_depth", 3) <= 6 or not 1 <= args.get("max_paths", 20) <= 100:
+                raise ValueError("relation_compose bounds are max_depth 1..6 and max_paths 1..100")
+        if action == "relation_conflicts" and not 1 <= args.get("limit", 100) <= 1000:
+            raise ValueError("relation_conflicts.limit must be 1..1000")
+        if action == "learn_from_jsonl":
+            # This capability reads a local file, not a remote URL or executable artifact.
+            if "://" in args["path"]:
+                raise ValueError("learn_from_jsonl accepts a local path, not a URL")
+        return action, args
+
+    def execute(self, task_id: str, plan: list[dict[str, Any]], *, resume: bool = True,
+                max_steps: int = 100, deadline_seconds: float = 120.0) -> dict:
         if not isinstance(plan, list) or not plan:
             raise ValueError("plan must be a non-empty list of action objects")
-        if len(plan) > 100:
-            raise ValueError("plan cannot exceed 100 actions")
+        if isinstance(max_steps, bool) or not isinstance(max_steps, int) or not 1 <= max_steps <= self.MAX_ACTIONS:
+            raise ValueError(f"max_steps must be 1..{self.MAX_ACTIONS}")
+        if isinstance(deadline_seconds, bool) or not isinstance(deadline_seconds, (int, float)) or not math.isfinite(deadline_seconds) or not 0.1 <= deadline_seconds <= self.MAX_DEADLINE_SECONDS:
+            raise ValueError(f"deadline_seconds must be 0.1..{self.MAX_DEADLINE_SECONDS}")
+        if len(plan) > max_steps:
+            raise ValueError("plan exceeds max_steps execution budget")
+        normalized = [self._validate_step(step, i) for i, step in enumerate(plan)
+                      if isinstance(step, dict)]
+        if len(normalized) != len(plan):
+            raise ValueError("each plan step must be an action object")
+        plan_json = json.dumps(plan, sort_keys=True, ensure_ascii=False)
         task = self.runtime.tasks.get(task_id)
         checkpoint = task["checkpoint"] if resume else {}
         completed = checkpoint.get("completed_steps", [])
-        if not isinstance(completed, list):
-            completed = []
-        if any(not isinstance(step, dict) or not isinstance(step.get("action"), str) for step in plan):
-            raise ValueError("each plan step requires an action string")
-        plan_json = json.dumps(plan, sort_keys=True, ensure_ascii=False)
+        if not isinstance(completed, list) or any(not isinstance(i, int) for i in completed):
+            raise ValueError("task checkpoint contains invalid completed-step indices")
         prior_plan = checkpoint.get("plan_json")
         if prior_plan and prior_plan != plan_json:
             raise ValueError("cannot resume a task with a different plan; create a new task or use resume=False")
         if not resume:
             completed = []
         outputs = list(checkpoint.get("outputs", [])) if resume else []
-        self.runtime.tasks.checkpoint(task_id, status="running", data={"plan_json": plan_json, "completed_steps": completed, "outputs": outputs}, event="execution_started")
-        for index, step in enumerate(plan):
+        if task["status"] == "cancelled" and resume:
+            return {"task": task, "outputs": outputs, "capabilities": self.capabilities,
+                    "cancelled": True}
+        deadline = time.monotonic() + float(deadline_seconds)
+        self.runtime.tasks.checkpoint(task_id, status="running", data={
+            "plan_json": plan_json, "completed_steps": completed, "outputs": outputs,
+            "execution_budget": {"max_steps": max_steps, "deadline_seconds": float(deadline_seconds)}
+        }, event="execution_started")
+        for index, (action, args) in enumerate(normalized):
             if index in completed:
                 continue
-            action = step["action"]
-            handler = self._handlers.get(action)
-            if handler is None:
-                self.runtime.tasks.checkpoint(task_id, status="failed", data={"failed_step": index, "error": f"unregistered action: {action}"}, event="execution_failed")
-                raise ValueError(f"unregistered action: {action}")
+            current = self.runtime.tasks.get(task_id)
+            if current["status"] == "cancelled":
+                return {"task": current, "outputs": outputs, "capabilities": self.capabilities,
+                        "cancelled": True}
+            if time.monotonic() >= deadline:
+                paused = self.runtime.tasks.checkpoint(task_id, status="paused", data={
+                    "completed_steps": completed, "outputs": outputs,
+                    "deadline_exceeded": True, "next_step": index
+                }, event="execution_deadline_reached")
+                return {"task": paused, "outputs": outputs, "capabilities": self.capabilities,
+                        "deadline_exceeded": True}
             try:
-                output = handler({key: value for key, value in step.items() if key != "action"})
+                output = self._handlers[action](args)
                 outputs.append({"step": index, "action": action, "output": output})
                 completed.append(index)
                 progress = len(completed) / len(plan)
-                self.runtime.tasks.checkpoint(task_id, status="running", progress=progress, data={"completed_steps": completed, "outputs": outputs, "last_completed_step": index}, event="step_completed")
+                self.runtime.tasks.checkpoint(task_id, status="running", progress=progress, data={
+                    "completed_steps": completed, "outputs": outputs, "last_completed_step": index
+                }, event="step_completed")
             except Exception as exc:
-                self.runtime.tasks.checkpoint(task_id, status="paused", data={"failed_step": index, "error": f"{type(exc).__name__}: {exc}", "completed_steps": completed, "outputs": outputs}, event="step_failed")
+                self.runtime.tasks.checkpoint(task_id, status="paused", data={
+                    "failed_step": index, "error": f"{type(exc).__name__}: {exc}",
+                    "completed_steps": completed, "outputs": outputs
+                }, event="step_failed")
                 raise
-        final = self.runtime.tasks.checkpoint(task_id, status="completed", progress=1.0, data={"completed_steps": completed, "outputs": outputs}, event="execution_completed")
-        return {"task": final, "outputs": outputs, "capabilities": self.capabilities}
+        final = self.runtime.tasks.checkpoint(task_id, status="completed", progress=1.0,
+            data={"completed_steps": completed, "outputs": outputs}, event="execution_completed")
+        return {"task": final, "outputs": outputs, "capabilities": self.capabilities,
+                "deadline_seconds": float(deadline_seconds)}
 
     def _record_observation(self, args):
         return self.runtime.observe(args["text"], args.get("source", "execution"))
@@ -73,8 +173,14 @@ class TaskExecutor:
         texts = list(self.runtime.observations.all_texts())
         if not texts:
             raise ValueError("no local observations to discover patterns from")
-        report = discover_repeated_sequences(texts, min_length=int(args.get("min_length", 2)), max_length=int(args.get("max_length", 4)), min_occurrences=int(args.get("min_occurrences", 2)), limit=int(args.get("limit", 50)))
-        return {"observation_count": report.observation_count, "candidate_count": report.candidate_count, "candidates": [{"text": item.text, "occurrences": item.occurrences, "left_contexts": item.left_contexts, "right_contexts": item.right_contexts, "observation_indices": item.observation_indices} for item in report.candidates], "note": "Surface regularities only; not assigned meanings."}
+        report = discover_repeated_sequences(texts, min_length=int(args.get("min_length", 2)),
+            max_length=int(args.get("max_length", 4)), min_occurrences=int(args.get("min_occurrences", 2)),
+            limit=int(args.get("limit", 50)))
+        return {"observation_count": report.observation_count, "candidate_count": report.candidate_count,
+            "candidates": [{"text": item.text, "occurrences": item.occurrences,
+            "left_contexts": item.left_contexts, "right_contexts": item.right_contexts,
+            "observation_indices": item.observation_indices} for item in report.candidates],
+            "note": "Surface regularities only; not assigned meanings."}
 
     def _learn_from_jsonl(self, args):
         imported = self.runtime.learning.import_jsonl(args["path"])
@@ -86,3 +192,27 @@ class TaskExecutor:
 
     def _knowledge_search(self, args):
         return self.runtime.models.search_knowledge(args["query"], int(args.get("limit", 20)))
+
+    def _graph(self) -> ConceptRelationGraph:
+        return self.runtime.concepts
+
+    def _concept_add(self, args):
+        return self._graph().add_concept(args["label"], surface=args.get("surface"),
+            evidence_id=args.get("evidence_id", "executor-explicit"), source=args.get("source", "executor"))
+
+    def _relation_assert(self, args):
+        return self._graph().assert_relation(args["subject"], args["predicate"], args["object_value"],
+            object_concept=args.get("object_concept"), polarity=args.get("polarity", True),
+            exclusive=args.get("exclusive", False), evidence_id=args["evidence_id"],
+            source=args["source"], context=args.get("context", ""))
+
+    def _relation_search(self, args):
+        return self._graph().relations(subject=args.get("subject"), predicate=args.get("predicate"),
+            limit=int(args.get("limit", 200)))
+
+    def _relation_compose(self, args):
+        return self._graph().compose(args["start"], args["target"],
+            max_depth=int(args.get("max_depth", 3)), max_paths=int(args.get("max_paths", 20)))
+
+    def _relation_conflicts(self, args):
+        return self._graph().conflicts(limit=int(args.get("limit", 100)))
