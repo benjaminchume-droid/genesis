@@ -163,6 +163,14 @@ class TaskExecutor:
                 outputs.append({"step": index, "action": action, "output": output})
                 completed.append(index)
                 progress = len(completed) / len(plan)
+                # Preserve cancellation requested while a synchronous action was running.
+                after_action = self.runtime.tasks.get(task_id)
+                if after_action["status"] == "cancelled":
+                    cancelled = self.runtime.tasks.checkpoint(task_id, status="cancelled", progress=progress, data={
+                        "completed_steps": completed, "outputs": outputs, "last_completed_step": index
+                    }, event="step_completed_after_cancel")
+                    return {"task": cancelled, "outputs": outputs, "capabilities": self.capabilities,
+                            "cancelled": True}
                 self.runtime.tasks.checkpoint(task_id, status="running", progress=progress, data={
                     "completed_steps": completed, "outputs": outputs, "last_completed_step": index
                 }, event="step_completed")
