@@ -180,3 +180,52 @@ def test_brave_search_adapter_uses_configured_secret_without_returning_it(monkey
     assert captured["headers"]["X-Subscription-Token"] == "test-secret-token"
     assert results[0]["provider"] == "brave_web_api"
     assert "test-secret-token" not in json.dumps(results)
+
+def test_grounded_response_retrieves_source_sentences_and_cites_them(tmp_path, monkeypatch):
+    _public_dns(monkeypatch)
+    runtime = GenesisRuntime(tmp_path / "home")
+    html_bytes = b"<html><head><title>Ocean energy report</title></head><body><main><p>The ocean absorbs heat from sunlight and redistributes energy through currents. Marine circulation affects climate across the planet.</p></main></body></html>"
+    monkeypatch.setattr("genesis.research.web._http_get", lambda url, max_bytes=2_000_000, headers=None: (html_bytes, "text/html; charset=utf-8", "utf-8"))
+    runtime.research.fetch("https://example.com/ocean")
+    result = runtime.responses.respond("How does the ocean absorb heat?")
+    assert result["outcome"] == "evidence_found"
+    assert result["evidence"]
+    assert "ocean absorbs heat" in result["answer"].casefold()
+    assert result["sources"][0]["url"] == "https://example.com/ocean"
+    assert "not calibrated confidence" in result["epistemic_note"]
+
+
+def test_grounded_response_abstains_when_no_evidence_matches(tmp_path):
+    runtime = GenesisRuntime(tmp_path / "home")
+    result = runtime.responses.respond("Explain an unknown phenomenon")
+    assert result["outcome"] == "abstained"
+    assert result["evidence"] == []
+
+
+def test_grounded_response_can_use_live_search_and_fetch_results(tmp_path, monkeypatch):
+    runtime = GenesisRuntime(tmp_path / "home")
+    runtime.research.search = lambda query, limit: {
+        "search_id": "s1", "query": query, "results": [
+            {"url": "https://example.com/live", "title": "Live source", "snippet": "The ocean absorbs heat from sunlight."}
+        ], "count": 1, "providers": ["test"], "errors": []
+    }
+    runtime.research.fetch = lambda url, title="", search_id=None: {
+        "document_id": "transient", "url": url, "title": title,
+        "content": "The ocean absorbs heat from sunlight and redistributes energy through currents.",
+        "content_type": "text/html", "status": "fetched"
+    }
+    result = runtime.responses.respond("ocean absorbs heat", search_web=True)
+    assert result["outcome"] == "evidence_found"
+    assert result["fetched_sources"] == 1
+    assert result["web_search"]["search_id"] == "s1"
+    assert result["sources"][0]["url"] == "https://example.com/live"
+
+
+def test_executor_exposes_grounded_response_capability(tmp_path):
+    runtime = GenesisRuntime(tmp_path / "home")
+    task = runtime.tasks.create("answer from evidence")
+    result = runtime.executor.execute(task["task_id"], [
+        {"action": "grounded_respond", "query": "unseen fact"}
+    ], isolated_actions=False)
+    assert result["task"]["status"] == "completed"
+    assert result["outputs"][0]["output"]["outcome"] == "abstained"
