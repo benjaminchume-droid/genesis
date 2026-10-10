@@ -13,6 +13,7 @@ from typing import Any
 
 from genesis.runtime.service import GenesisRuntime
 from genesis.research.browser import GenesisBrowser
+from genesis.research.controller import AdaptiveResearchController
 
 PROTOCOL_VERSION = "2024-11-05"
 
@@ -26,6 +27,7 @@ class GenesisMCPServer:
     def __init__(self, home: str | None = None):
         self.runtime = GenesisRuntime(home)
         self.browser = GenesisBrowser(self.runtime.research, self.runtime.home / "browser.sqlite3")
+        self.research_controller = AdaptiveResearchController(self.browser)
 
     def tools(self) -> list[dict]:
         return [
@@ -43,6 +45,7 @@ class GenesisMCPServer:
             {"name":"inspect_page","description":"Read a section of a page opened in this MCP session.","inputSchema":{"type":"object","properties":{"page_id":{"type":"string"},"offset":{"type":"integer","minimum":0,"default":0},"limit":{"type":"integer","minimum":1,"maximum":12000,"default":8000}},"required":["page_id"],"additionalProperties":False}},
             {"name":"list_page_links","description":"List safe, navigable links extracted from an opened page.","inputSchema":{"type":"object","properties":{"page_id":{"type":"string"},"limit":{"type":"integer","minimum":1,"maximum":200,"default":100}},"required":["page_id"],"additionalProperties":False}},
             {"name":"follow_page_link","description":"Open a link by its zero-based index on a page returned by list_page_links.","inputSchema":{"type":"object","properties":{"page_id":{"type":"string"},"link_index":{"type":"integer","minimum":0}},"required":["page_id","link_index"],"additionalProperties":False}},
+            {"name":"research_iteratively","description":"Conduct bounded adaptive web research: search, open sources, measure lexical coverage and domain diversity, reformulate the query when evidence gaps remain, and return provenance plus explicit gaps. This is not truth verification.","inputSchema":{"type":"object","properties":{"query":{"type":"string","minLength":1,"maxLength":500},"max_sources":{"type":"integer","minimum":1,"maximum":12,"default":8},"max_rounds":{"type":"integer","minimum":1,"maximum":3,"default":2}},"required":["query"],"additionalProperties":False}},
             {"name":"research_topic","description":"Search, open, and read a bounded set of web pages in one call; returns source URLs, page IDs, excerpts, and fetch errors.","inputSchema":{"type":"object","properties":{"query":{"type":"string","minLength":1,"maxLength":500},"limit":{"type":"integer","minimum":1,"maximum":8,"default":5}},"required":["query"],"additionalProperties":False}},
             {"name":"browser_history","description":"List URLs visited by this Genesis browser, newest first.","inputSchema":{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":200,"default":50}},"additionalProperties":False}},
             {"name":"save_page_to_research","description":"Fetch a page into Genesis's persistent research ledger and preserve provenance for later review/ingestion.","inputSchema":{"type":"object","properties":{"url":{"type":"string","minLength":1},"title":{"type":"string"},"search_id":{"type":"string"}},"required":["url"],"additionalProperties":False}},
@@ -69,6 +72,7 @@ class GenesisMCPServer:
         if name == "list_page_links": return self.browser.list_links(args["page_id"], args.get("limit", 100))
         if name == "follow_page_link": return self.browser.follow_link(args["page_id"], args["link_index"])
         if name == "research_topic": return self.browser.research_topic(args["query"], args.get("limit", 5))
+        if name == "research_iteratively": return self.research_controller.research(args["query"], max_sources=args.get("max_sources", 8), max_rounds=args.get("max_rounds", 2))
         if name == "browser_history": return self.browser.history(args.get("limit", 50))
         if name == "save_page_to_research": return self.runtime.research.fetch(args["url"], title=args.get("title", ""), search_id=args.get("search_id"))
         if name == "ingest_source_for_review": return self.runtime.research.ingest(args["document_id"])
