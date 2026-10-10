@@ -58,6 +58,9 @@ class TaskExecutor:
             "relation_conflicts": self._relation_conflicts,
             "relation_extract": self._relation_extract,
             "relation_import_fit": self._relation_import_fit,
+            "web_search": self._web_search,
+            "web_fetch": self._web_fetch,
+            "web_ingest": self._web_ingest,
         }
         self._schemas = {
             "record_observation": ({"text"}, {"text", "source"}),
@@ -73,6 +76,9 @@ class TaskExecutor:
             "relation_conflicts": (set(), {"limit"}),
             "relation_extract": ({"text"}, {"text"}),
             "relation_import_fit": ({"path"}, {"path", "min_support"}),
+            "web_search": ({"query"}, {"query", "limit"}),
+            "web_fetch": ({"url"}, {"url", "title", "search_id"}),
+            "web_ingest": ({"document_id"}, {"document_id"}),
         }
 
     @property
@@ -109,6 +115,8 @@ class TaskExecutor:
                 raise ValueError("discover_patterns requires 1 <= min_length <= max_length <= 20")
             if not 1 <= args.get("min_occurrences", 2) <= 10000 or not 1 <= args.get("limit", 50) <= 100:
                 raise ValueError("discover_patterns bounds are min_occurrences 1..10000 and limit 1..100")
+        if action == "web_search" and not 1 <= args.get("limit", 10) <= 20:
+            raise ValueError("web_search.limit must be 1..20")
         if action == "knowledge_search" and not 1 <= args.get("limit", 20) <= 100:
             raise ValueError("knowledge_search.limit must be 1..100")
         if action == "predict" and not 0 <= args.get("min_margin", 0.15) <= 1:
@@ -284,6 +292,15 @@ class TaskExecutor:
 
     def _knowledge_search(self, args):
         return self.runtime.models.search_knowledge(args["query"], int(args.get("limit", 20)))
+
+    def _web_search(self, args):
+        return self.runtime.research.search(args["query"], int(args.get("limit", 10)))
+
+    def _web_fetch(self, args):
+        return self.runtime.research.fetch(args["url"], title=args.get("title", ""), search_id=args.get("search_id"))
+
+    def _web_ingest(self, args):
+        return self.runtime.research.ingest(args["document_id"])
 
     def _graph(self) -> ConceptRelationGraph:
         return self.runtime.concepts
