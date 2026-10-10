@@ -31,6 +31,8 @@ def test_trainer_quarantine_review_release_install_and_rollback(tmp_path):
     package=tmp_path/"release.zip"; assert build_release(trainer,package,version="0.1.0")["record_count"]==1
     assert verify_release(package)["valid"] is True
     models=ModelStore(tmp_path/"models"); models.install(package); assert models.active()["version"]=="0.1.0"
+    matches=models.search_knowledge("Water freezes")["matches"]
+    assert matches and "Water freezes" in matches[0]["statement"]
     assert models.activate("0.1.0")["active_version"]=="0.1.0"
 
 def test_release_corruption_is_detected(tmp_path):
