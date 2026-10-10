@@ -66,7 +66,7 @@ button:focus:not(:focus-visible){outline:none}
     <p>Ask a question, explore an idea, or let Genesis look for evidence. Your conversation stays on this device.</p>
     <div class="suggestions">
       <button class="suggestion" type="button" data-prompt="Explain how photosynthesis works and show the evidence you have.">Explain a concept</button>
-      <button class="suggestion" type="button" data-prompt="Search the web for recent developments in open-source AI and compare sources.">Research a topic</button>
+      <button class="suggestion" type="button" data-web="true" data-prompt="Search the web for recent developments in open-source AI and compare sources.">Research a topic</button>
       <button class="suggestion" type="button" data-prompt="Help me break a complex goal into smaller steps and identify what is still unknown.">Work through a problem</button>
     </div>
   </section>
@@ -146,7 +146,7 @@ document.addEventListener('click',function(){closeModelMenu()});
 document.querySelectorAll('.mode-option').forEach(function(b){b.addEventListener('click',function(){setMode(b.dataset.mode)})});
 el('depth-slider').addEventListener('input',function(){settings.depth=Number(el('depth-slider').value);updateModeUI()});
 el('web-toggle').addEventListener('click',function(){settings.web=!settings.web;updateModeUI()});
-document.querySelectorAll('[data-prompt]').forEach(function(b){b.addEventListener('click',function(){el('prompt').value=b.dataset.prompt;resizePrompt();el('prompt').focus()})});
+document.querySelectorAll('[data-prompt]').forEach(function(b){b.addEventListener('click',function(){if(b.dataset.web==='true'&&!settings.web){settings.web=true;updateModeUI()}el('prompt').value=b.dataset.prompt;resizePrompt();el('prompt').focus()})});
 el('voice-button').addEventListener('click',function(){const Speech=window.SpeechRecognition||window.webkitSpeechRecognition;if(!Speech){showError('Voice input is not supported in this browser. Type your message instead.');return}if(recognition){try{recognition.stop()}catch(_){}recognition=null;el('voice-button').classList.remove('active');return}try{recognition=new Speech();recognition.lang=navigator.language||'en-US';recognition.interimResults=true;recognition.continuous=false;recognition.onresult=function(event){let text='';for(let i=0;i<event.results.length;i++)text+=event.results[i][0].transcript;el('prompt').value=text;resizePrompt()};recognition.onerror=function(event){showError('Voice recognition stopped: '+event.error+'. No voice audio is saved by Genesis.');el('voice-button').classList.remove('active');recognition=null};recognition.onend=function(){el('voice-button').classList.remove('active');recognition=null};recognition.start();el('voice-button').classList.add('active');clearError()}catch(e){showError('Could not start voice recognition: '+e.message)}});
 window.addEventListener('storage',function(event){if(event.key===STORE){try{sessions=JSON.parse(localStorage.getItem(STORE)||'[]');renderHistory();renderConversation()}catch(_){}}});
 if(!sessions.length){const session={id:id(),title:'New conversation',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),messages:[]};sessions.push(session);activeId=session.id;save()}else{activeId=sessions[0].id}
