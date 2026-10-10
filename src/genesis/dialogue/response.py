@@ -38,6 +38,8 @@ class GroundedResponseEngine:
             raise ValueError("query must contain 1..2000 characters")
         if not isinstance(search_web, bool) or not isinstance(ingest_sources, bool):
             raise ValueError("search_web and ingest_sources must be booleans")
+        if ingest_sources and not search_web:
+            raise ValueError("ingest_sources requires search_web=True")
         if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 10:
             raise ValueError("limit must be 1..10")
         if isinstance(max_excerpts, bool) or not isinstance(max_excerpts, int) or not 1 <= max_excerpts <= 8:
