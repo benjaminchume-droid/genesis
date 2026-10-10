@@ -138,6 +138,7 @@ Status: keyless public web search, safe text-page retrieval, source provenance, 
 
 Implemented:
 - A text-first browser with search, open/read, page inspection, link listing/following, and local visit history.
+- A bounded adaptive research controller that reformulates queries from observed page terms, tracks URL/content duplicates, measures lexical query coverage and domain diversity, and reports evidence gaps without claiming truth verification.
 - MCP stdio server (`genesis-mcp`) exposing browser and source-ingestion tools without requiring a paid search API key.
 - SSRF-aware URL policy, bounded page sizes/timeouts, no JavaScript execution, and untrusted-page-content guidance.
 - Bounded `research_topic` search/open/read loop and provenance-preserving save/ingest operations.
