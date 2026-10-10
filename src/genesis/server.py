@@ -13,7 +13,7 @@ MAX_BODY = 1_000_000
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "GenesisLocal/0.2"
+    server_version = "GenesisLocal/0.3"
 
     def _json(self, status, value):
         body = json.dumps(value, ensure_ascii=False).encode("utf-8")
@@ -75,9 +75,20 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, runtime.learning.status())
         if path == "/api/learning/rules":
             rules = runtime.learning.rules()
-            return self._json(200, [{"rule_id": r.rule_id, "feature": r.feature, "outcome": r.outcome, "support": r.support, "counterexamples": r.counterexamples, "precision": r.precision, "evidence_ids": r.evidence_ids, "counterexample_ids": r.counterexample_ids} for r in rules])
+            return self._json(200, [{"rule_id": r.rule_id, "feature": r.feature, "outcome": r.outcome,
+                "support": r.support, "counterexamples": r.counterexamples, "precision": r.precision,
+                "evidence_ids": r.evidence_ids, "counterexample_ids": r.counterexample_ids} for r in rules])
         if path == "/api/learning/history":
             return self._json(200, runtime.learning.history())
+        if path == "/api/concepts":
+            return self._json(200, {"status": runtime.concepts.status(),
+                "concepts": runtime.concepts.concepts(parse_qs(parsed.query).get("q", [""])[0])})
+        if path == "/api/relations":
+            query = parse_qs(parsed.query)
+            return self._json(200, runtime.concepts.relations(
+                subject=query.get("subject", [None])[0], predicate=query.get("predicate", [None])[0]))
+        if path == "/api/relations/conflicts":
+            return self._json(200, runtime.concepts.conflicts())
         if path == "/api/knowledge":
             query = parse_qs(parsed.query).get("q", [""])[0]
             try:
@@ -104,23 +115,56 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/learning/experiences":
                 if not isinstance(body.get("text"), str) or not isinstance(body.get("outcome"), str):
                     raise ValueError("text and outcome must be strings")
-                item = runtime.learning.add_experience(body["text"], body["outcome"], source=str(body.get("source", "user-feedback"))[:200])
-                return self._json(201, {"experience_id": item.experience_id, "outcome": item.outcome, "observed_at": item.observed_at})
+                item = runtime.learning.add_experience(body["text"], body["outcome"],
+                    source=str(body.get("source", "user-feedback"))[:200])
+                return self._json(201, {"experience_id": item.experience_id, "outcome": item.outcome,
+                    "observed_at": item.observed_at})
             if path == "/api/learning/fit":
-                return self._json(200, runtime.learning.learn(min_support=int(body.get("min_support", 2)), min_precision=float(body.get("min_precision", 0.75))))
+                return self._json(200, runtime.learning.learn(min_support=int(body.get("min_support", 2)),
+                    min_precision=float(body.get("min_precision", 0.75))))
             if path == "/api/learning/predict":
                 if not isinstance(body.get("text"), str):
                     raise ValueError("text must be a string")
-                return self._json(200, runtime.learning.predict(body["text"], min_margin=float(body.get("min_margin", 0.15))))
+                return self._json(200, runtime.learning.predict(body["text"],
+                    min_margin=float(body.get("min_margin", 0.15))))
+            if path == "/api/concepts":
+                if not isinstance(body.get("label"), str):
+                    raise ValueError("label must be a string")
+                return self._json(201, runtime.concepts.add_concept(body["label"],
+                    surface=body.get("surface"), evidence_id=body.get("evidence_id", "local-user-explicit"),
+                    source=body.get("source", "local-user")))
+            if path == "/api/relations":
+                required = ("subject", "predicate", "object_value", "evidence_id", "source")
+                if any(not isinstance(body.get(key), str) for key in required):
+                    raise ValueError("subject, predicate, object_value, evidence_id and source must be strings")
+                return self._json(201, runtime.concepts.assert_relation(
+                    body["subject"], body["predicate"], body["object_value"],
+                    object_concept=body.get("object_concept"), polarity=body.get("polarity", True),
+                    exclusive=body.get("exclusive", False), evidence_id=body["evidence_id"],
+                    source=body["source"], context=body.get("context", "")))
+            if path == "/api/relations/compose":
+                if not isinstance(body.get("start"), str) or not isinstance(body.get("target"), str):
+                    raise ValueError("start and target must be strings")
+                return self._json(200, runtime.concepts.compose(body["start"], body["target"],
+                    max_depth=int(body.get("max_depth", 3)), max_paths=int(body.get("max_paths", 20))))
             if path.startswith("/api/tasks/") and path.endswith("/run"):
                 task_id = unquote(path[len("/api/tasks/"):-len("/run")].rstrip("/"))
-                return self._json(200, runtime.executor.execute(task_id, body.get("plan"), resume=bool(body.get("resume", True))))
+                return self._json(200, runtime.executor.execute(task_id, body.get("plan"),
+                    resume=body.get("resume", True), max_steps=body.get("max_steps", 100),
+                    deadline_seconds=body.get("deadline_seconds", 120)))
+            if path.startswith("/api/tasks/") and path.endswith("/cancel"):
+                task_id = unquote(path[len("/api/tasks/"):-len("/cancel")].rstrip("/"))
+                task = runtime.tasks.checkpoint(task_id, status="cancelled",
+                    data={"cancel_requested_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()},
+                    event="cancellation_requested")
+                return self._json(200, task)
             if path.startswith("/api/tasks/") and path.endswith("/checkpoint"):
                 task_id = unquote(path[len("/api/tasks/"):-len("/checkpoint")].rstrip("/"))
                 data = body.get("data", {})
                 if not isinstance(data, dict):
                     raise ValueError("data must be a JSON object")
-                return self._json(200, runtime.tasks.checkpoint(task_id, status=body.get("status"), progress=body.get("progress"), data=data))
+                return self._json(200, runtime.tasks.checkpoint(task_id, status=body.get("status"),
+                    progress=body.get("progress"), data=data))
             return self._json(404, {"error": "not found"})
         except KeyError as exc:
             return self._json(404, {"error": f"unknown task or field: {exc}"})
@@ -134,7 +178,8 @@ class Handler(BaseHTTPRequestHandler):
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="genesis-app", description="Run the Genesis interface on this device only")
     parser.add_argument("--home", help="Runtime data directory")
-    parser.add_argument("--host", default="127.0.0.1", choices=["127.0.0.1", "::1"], help="Loopback only; remote binding is intentionally disabled")
+    parser.add_argument("--host", default="127.0.0.1", choices=["127.0.0.1", "::1"],
+                        help="Loopback only; remote binding is intentionally disabled")
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args(argv)
     runtime = GenesisRuntime(args.home)
