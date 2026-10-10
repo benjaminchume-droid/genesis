@@ -12,7 +12,7 @@ def test_local_api_persists_observations_and_tasks(tmp_path):
         req=urllib.request.Request(base+"/api/observations",data=json.dumps({"text":"retain this evidence","source":"test"}).encode(),headers={"Content-Type":"application/json"},method="POST")
         with urllib.request.urlopen(req) as response: assert response.status==201
         req=urllib.request.Request(base+"/api/tasks",data=json.dumps({"objective":"persistent objective"}).encode(),headers={"Content-Type":"application/json"},method="POST")
-        with urllib.request.urlopen(req) as response: assert json.loads(response.read())["objective"]=="persistent objective"
+        with urllib.request.urlopen(req) as response: task=json.loads(response.read()); assert task["objective"]=="persistent objective"
 
         for text in ("alpha first", "alpha second"):
             req=urllib.request.Request(base+"/api/learning/experiences",data=json.dumps({"text":text,"outcome":"yes"}).encode(),headers={"Content-Type":"application/json"},method="POST")
