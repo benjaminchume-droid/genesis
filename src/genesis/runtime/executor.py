@@ -61,6 +61,7 @@ class TaskExecutor:
             "web_search": self._web_search,
             "web_fetch": self._web_fetch,
             "web_ingest": self._web_ingest,
+            "grounded_respond": self._grounded_respond,
         }
         self._schemas = {
             "record_observation": ({"text"}, {"text", "source"}),
@@ -79,6 +80,7 @@ class TaskExecutor:
             "web_search": ({"query"}, {"query", "limit"}),
             "web_fetch": ({"url"}, {"url", "title", "search_id"}),
             "web_ingest": ({"document_id"}, {"document_id"}),
+            "grounded_respond": ({"query"}, {"query", "search_web", "ingest_sources", "limit", "max_excerpts"}),
         }
 
     @property
@@ -99,7 +101,7 @@ class TaskExecutor:
             raise ValueError(f"missing arguments for {action}: {', '.join(sorted(missing))}")
         for key, value in args.items():
             if key in {"text", "query", "path", "label", "surface", "evidence_id", "source",
-                       "subject", "predicate", "object_value", "object_concept", "context", "start", "target", "url", "title", "search_id", "document_id"}:
+                       "subject", "predicate", "object_value", "object_concept", "context", "start", "target", "url", "title", "search_id", "document_id", "query"}:
                 if not isinstance(value, str):
                     raise ValueError(f"{action}.{key} must be a string")
             elif key in {"min_length", "max_length", "min_occurrences", "limit", "max_depth", "max_paths"}:
@@ -108,13 +110,16 @@ class TaskExecutor:
             elif key in {"min_margin", "min_precision"}:
                 if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
                     raise ValueError(f"{action}.{key} must be a finite number")
-            elif key in {"polarity", "exclusive"} and not isinstance(value, bool):
+            elif key in {"polarity", "exclusive", "search_web", "ingest_sources"} and not isinstance(value, bool):
                 raise ValueError(f"{action}.{key} must be a boolean")
         if action == "discover_patterns":
             if not 1 <= args.get("min_length", 2) <= args.get("max_length", 4) <= 20:
                 raise ValueError("discover_patterns requires 1 <= min_length <= max_length <= 20")
             if not 1 <= args.get("min_occurrences", 2) <= 10000 or not 1 <= args.get("limit", 50) <= 100:
                 raise ValueError("discover_patterns bounds are min_occurrences 1..10000 and limit 1..100")
+        if action == "grounded_respond":
+            if not 1 <= args.get("limit", 5) <= 10 or not 1 <= args.get("max_excerpts", 4) <= 8:
+                raise ValueError("grounded_respond limits must be limit 1..10 and max_excerpts 1..8")
         if action == "web_search" and not 1 <= args.get("limit", 10) <= 20:
             raise ValueError("web_search.limit must be 1..20")
         if action == "knowledge_search" and not 1 <= args.get("limit", 20) <= 100:
@@ -292,6 +297,11 @@ class TaskExecutor:
 
     def _knowledge_search(self, args):
         return self.runtime.models.search_knowledge(args["query"], int(args.get("limit", 20)))
+
+    def _grounded_respond(self, args):
+        return self.runtime.responses.respond(args["query"], search_web=args.get("search_web", False),
+            ingest_sources=args.get("ingest_sources", False), limit=int(args.get("limit", 5)),
+            max_excerpts=int(args.get("max_excerpts", 4)))
 
     def _web_search(self, args):
         return self.runtime.research.search(args["query"], int(args.get("limit", 10)))
