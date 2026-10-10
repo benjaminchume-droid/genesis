@@ -6,7 +6,7 @@
 
 src/genesis/learning/concepts.py stores concepts, observed surface mentions, relation assertions, source labels, evidence identifiers, context, timestamps, and contradiction links in SQLite. Exact normalized labels are reused as a concept record; the system does not guess that unrelated labels are synonyms. Different surface forms can be attached to one concept only through an explicit concept label supplied by the operator.
 
-### Relation composition
+### Example-driven relation-frame induction\n\nsrc/genesis/learning/relation_induction.py learns lexical frames from explicitly annotated examples. The operator supplies text, subject, predicate, object, source, and evidence ID. Repeated frames can then propose candidate triples for sentences with new entity names. Candidates carry support and the training evidence IDs. They are not automatically inserted into the trusted graph. This is a symbolic baseline that generalizes within a learned lexical frame, not a general semantic parser.\n\nCLI: relation-example, relation-import, relation-fit, relation-extract, relation-templates. The local API exposes /api/relation-learning/examples, /fit, /extract, /status, and /templates.\n\n### Relation composition
 
 A relation assertion is a directed edge with a predicate, object value, optional linked object concept, polarity, provenance, and context. compose(start, target) performs bounded breadth-first search over explicitly asserted positive edges. Every returned edge includes its evidence and source. Paths are candidate chains of assertions, not causal explanations or proofs.
 
@@ -35,7 +35,7 @@ The local API exposes GET /api/concepts, GET /api/relations, POST /api/relations
 
 ## Important limits
 
-- Relation extraction from arbitrary raw language is not implemented as a reliable general-purpose capability. Relations are currently entered explicitly through structured actions. Automatically extracting a relation from a sentence is a separate research problem and must be evaluated for ambiguity, negation, reference, and context.
+- Relation-frame extraction from annotated examples is implemented as a candidate generator. Open-domain extraction from arbitrary raw language is not a reliable general-purpose capability. Candidate frames do not yet robustly handle negation, coreference, temporal context, or paraphrases outside the learned lexical frame.
 - Composition is graph-path discovery. It does not establish causality, temporal validity, or the truth of every edge.
 - Exclusive predicates are marked explicitly by the operator. Genesis does not infer that a predicate is functional in all contexts.
 - A wall-clock deadline is checked between registered actions. A synchronous action already running is not forcibly terminated. The runtime must not describe this as hard preemptive cancellation. Individual action timeouts require isolated worker processes or another safely interruptible execution model.
@@ -51,5 +51,5 @@ The local API exposes GET /api/concepts, GET /api/relations, POST /api/relations
 3. Compare against majority, lexical overlap, and nearest-example baselines.
 4. Report per-class precision/recall/F1, coverage, selective accuracy, abstention, group split, seed, dataset hash, and error categories.
 5. Add calibrated confidence only after calibration is measured on independent validation data.
-6. Add relation extraction only as a candidate generator with evidence spans and a human-review path until held-out results justify stronger trust.
+6. Expand relation-frame extraction with evidence spans, explicit negation/context handling, and human review; retain candidate-only status until held-out results justify stronger trust.
 7. Replace cooperative deadlines with isolated workers before running expensive, blocking, or untrusted actions.
