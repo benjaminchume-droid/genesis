@@ -99,7 +99,7 @@ class TaskExecutor:
             raise ValueError(f"missing arguments for {action}: {', '.join(sorted(missing))}")
         for key, value in args.items():
             if key in {"text", "query", "path", "label", "surface", "evidence_id", "source",
-                       "subject", "predicate", "object_value", "object_concept", "context", "start", "target"}:
+                       "subject", "predicate", "object_value", "object_concept", "context", "start", "target", "url", "title", "search_id", "document_id"}:
                 if not isinstance(value, str):
                     raise ValueError(f"{action}.{key} must be a string")
             elif key in {"min_length", "max_length", "min_occurrences", "limit", "max_depth", "max_paths"}:
