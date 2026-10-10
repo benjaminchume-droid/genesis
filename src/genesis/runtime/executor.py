@@ -16,6 +16,10 @@ from typing import Any, Callable
 from genesis.learning.concepts import ConceptRelationGraph
 
 
+class _ExecutionCancelled(Exception):
+    pass
+
+
 def _isolated_action_worker(home: str, action: str, args: dict[str, Any], connection) -> None:
     """Run one registered action in a disposable process for enforceable timeouts."""
     try:
@@ -185,7 +189,7 @@ class TaskExecutor:
                         "deadline_exceeded": True}
             try:
                 if isolated_actions:
-                    output = self._run_isolated(action, args, float(action_timeout_seconds))
+                    output = self._run_isolated(task_id, action, args, float(action_timeout_seconds))
                 else:
                     output = self._handlers[action](args)
                 outputs.append({"step": index, "action": action, "output": output})
@@ -202,6 +206,10 @@ class TaskExecutor:
                 self.runtime.tasks.checkpoint(task_id, status="running", progress=progress, data={
                     "completed_steps": completed, "outputs": outputs, "last_completed_step": index
                 }, event="step_completed")
+            except _ExecutionCancelled:
+                cancelled = self.runtime.tasks.get(task_id)
+                return {"task": cancelled, "outputs": outputs, "capabilities": self.capabilities,
+                        "cancelled": True}
             except Exception as exc:
                 self.runtime.tasks.checkpoint(task_id, status="paused", data={
                     "failed_step": index, "error": f"{type(exc).__name__}: {exc}",
@@ -213,27 +221,36 @@ class TaskExecutor:
         return {"task": final, "outputs": outputs, "capabilities": self.capabilities,
                 "deadline_seconds": float(deadline_seconds)}
 
-    def _run_isolated(self, action: str, args: dict[str, Any], timeout: float) -> Any:
-        """Run an action in a child process and terminate it if its timeout expires."""
+    def _run_isolated(self, task_id: str, action: str, args: dict[str, Any], timeout: float) -> Any:
+        """Run an action in a child process with a hard timeout and cancellation polling."""
         context = multiprocessing.get_context("spawn")
         parent, child = context.Pipe(duplex=False)
         process = context.Process(target=_isolated_action_worker,
             args=(str(self.runtime.home), action, args, child), daemon=True)
         process.start()
         child.close()
+        deadline = time.monotonic() + timeout
         try:
-            if not parent.poll(timeout):
-                process.terminate()
-                process.join(timeout=2)
-                raise TimeoutError(f"action {action!r} exceeded {timeout:.3f}s timeout and was terminated")
-            message = json.loads(parent.recv())
-            process.join(timeout=2)
-            if process.is_alive():
-                process.terminate()
-                process.join(timeout=2)
-            if not message.get("ok"):
-                raise RuntimeError(f"{message.get('error_type', 'ActionError')}: {message.get('error', 'action failed')}")
-            return message.get("output")
+            while True:
+                if parent.poll(0.1):
+                    message = json.loads(parent.recv())
+                    process.join(timeout=2)
+                    if process.is_alive():
+                        process.terminate()
+                        process.join(timeout=2)
+                    if not message.get("ok"):
+                        raise RuntimeError(f"{message.get('error_type', 'ActionError')}: {message.get('error', 'action failed')}")
+                    return message.get("output")
+                if self.runtime.tasks.get(task_id)["status"] == "cancelled":
+                    process.terminate()
+                    process.join(timeout=2)
+                    raise _ExecutionCancelled()
+                if time.monotonic() >= deadline:
+                    process.terminate()
+                    process.join(timeout=2)
+                    raise TimeoutError(f"action {action!r} exceeded {timeout:.3f}s timeout and was terminated")
+                if not process.is_alive():
+                    raise RuntimeError(f"action {action!r} worker exited without returning a result")
         finally:
             parent.close()
             if process.is_alive():
