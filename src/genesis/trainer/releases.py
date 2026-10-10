@@ -36,7 +36,7 @@ def build_release(store: TrainerStore, destination: str | Path, *, version: str,
         "record_count": len(records), "files": {"knowledge.jsonl": hashlib.sha256(knowledge).hexdigest()},
         "integrity": "SHA-256 hashes detect accidental/tampered content but do not authenticate publisher identity; signed manifests are a later deployment gate.",
     }
-    manifest_bytes = canonical_json(manifest) + b"\\n"
+    manifest_bytes = canonical_json(manifest) + b"\n"
     path = Path(destination)
     path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
