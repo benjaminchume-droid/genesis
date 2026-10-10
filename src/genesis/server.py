@@ -89,6 +89,10 @@ class Handler(BaseHTTPRequestHandler):
                 subject=query.get("subject", [None])[0], predicate=query.get("predicate", [None])[0]))
         if path == "/api/relations/conflicts":
             return self._json(200, runtime.concepts.conflicts())
+        if path == "/api/relation-learning/status":
+            return self._json(200, runtime.relation_learner.status())
+        if path == "/api/relation-learning/templates":
+            return self._json(200, runtime.relation_learner.templates())
         if path == "/api/knowledge":
             query = parse_qs(parsed.query).get("q", [""])[0]
             try:
@@ -142,6 +146,24 @@ class Handler(BaseHTTPRequestHandler):
                     object_concept=body.get("object_concept"), polarity=body.get("polarity", True),
                     exclusive=body.get("exclusive", False), evidence_id=body["evidence_id"],
                     source=body["source"], context=body.get("context", "")))
+            if path == "/api/relation-learning/examples":
+                required = ("text", "subject", "predicate", "object_value", "evidence_id", "source")
+                if any(not isinstance(body.get(key), str) for key in required):
+                    raise ValueError("text, subject, predicate, object_value, evidence_id and source must be strings")
+                return self._json(201, runtime.relation_learner.add_example(body["text"], body["subject"],
+                    body["predicate"], body["object_value"], evidence_id=body["evidence_id"], source=body["source"]))
+            if path == "/api/relation-learning/fit":
+                return self._json(200, runtime.relation_learner.fit(min_support=int(body.get("min_support", 2))))
+            if path == "/api/relation-learning/extract":
+                if not isinstance(body.get("text"), str):
+                    raise ValueError("text must be a string")
+                return self._json(200, runtime.relation_learner.extract(body["text"]))
+            if path == "/api/relation-learning/import":
+                if not isinstance(body.get("path"), str) or "://" in body["path"]:
+                    raise ValueError("path must be a local JSONL file path")
+                imported = runtime.relation_learner.import_jsonl(body["path"])
+                fitted = runtime.relation_learner.fit(min_support=int(body.get("min_support", 2)))
+                return self._json(200, {"import": imported, "fit": fitted})
             if path == "/api/relations/compose":
                 if not isinstance(body.get("start"), str) or not isinstance(body.get("target"), str):
                     raise ValueError("start and target must be strings")
