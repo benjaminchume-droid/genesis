@@ -104,6 +104,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, runtime.relation_learner.status())
         if path == "/api/relation-learning/templates":
             return self._json(200, runtime.relation_learner.templates())
+        if path == "/api/dialogue/status":
+            return self._json(200, {"mode": "grounded-extractive", "neural_models": False, "web_search_available": True})
         if path == "/api/research/status":
             return self._json(200, runtime.research.status())
         if path == "/api/research/documents":
@@ -133,6 +135,12 @@ class Handler(BaseHTTPRequestHandler):
             body = self._body()
             path = urlparse(self.path).path
             runtime = self.server.runtime
+            if path == "/api/dialogue/respond":
+                if not isinstance(body.get("query"), str):
+                    raise ValueError("query must be a string")
+                return self._json(200, runtime.responses.respond(body["query"],
+                    search_web=body.get("search_web", False), ingest_sources=body.get("ingest_sources", False),
+                    limit=int(body.get("limit", 5)), max_excerpts=int(body.get("max_excerpts", 4))))
             if path == "/api/research/search":
                 if not isinstance(body.get("query"), str):
                     raise ValueError("query must be a string")
