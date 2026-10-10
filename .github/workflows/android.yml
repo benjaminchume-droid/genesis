@@ -1,0 +1,65 @@
+name: Android APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/genesis/**"
+      - "clients/android/**"
+      - ".github/workflows/android.yml"
+      - "pyproject.toml"
+  pull_request:
+    paths:
+      - "src/genesis/**"
+      - "clients/android/**"
+      - ".github/workflows/android.yml"
+      - "pyproject.toml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-debug-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Include the actual Genesis runtime
+        run: |
+          mkdir -p clients/android/app/src/main/python
+          cp -R src/genesis clients/android/app/src/main/python/genesis
+
+      - name: Build installable debug APK
+        working-directory: clients/android
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Verify APK exists
+        run: test -s clients/android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: genesis-android-debug
+          path: clients/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
