@@ -69,3 +69,16 @@ def test_empty_or_punctuation_only_text_is_valid_but_deterministic():
         GroundedExample("word", "word"),
     ])
     assert model.predict("???") in {"punct", "word"}
+
+
+def test_candidate_interpretations_expose_support_and_counterexamples():
+    learner = GroundedAssociationLearner().fit([
+        GroundedExample("dax red", "warm", "warm-1"),
+        GroundedExample("dax bright", "warm", "warm-2"),
+        GroundedExample("wug blue", "cool", "cool-1"),
+    ])
+    candidates = learner.interpretations("dax blue")
+    assert candidates[0].label == "warm"
+    assert set(candidates[0].evidence_ids) == {"warm-1", "warm-2"}
+    assert candidates[0].counterexample_ids == ("cool-1",)
+    assert sum(candidate.relative_confidence for candidate in candidates) == pytest.approx(1.0)
