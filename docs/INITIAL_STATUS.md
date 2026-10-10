@@ -9,8 +9,13 @@ This document records the actual scope of the first repository scaffold.
 - Observation identifiers, timestamps, and source labels.
 - Unicode-aware surface segmentation with punctuation separated.
 - Corpus token counts and adjacent-token pair counts.
-- CLI commands for observation, segmentation, statistics, and recent records.
-- Tests for segmentation, statistics, observation validation, and persistence.
+- Candidate repeated-sequence discovery with observed left/right contexts and source-observation indices.
+- Explicit hypothesis records with confidence bounds, status, supporting observation references, and counterexample references.
+- Source-traceable claim records that remain unverified by default.
+- Declarative procedure specifications with preconditions, validation cases, and provenance.
+- Deterministic dataset splitting with a content fingerprint and exact-string deduplication.
+- CLI commands for observation, segmentation, statistics, recent records, and surface-pattern discovery.
+- Tests for the above primitives.
 - Written architecture, roadmap, research plan, evaluation criteria, safety boundaries, and architecture decisions.
 
 ## Not implemented
@@ -19,6 +24,8 @@ This document records the actual scope of the first repository scaffold.
 - Reliable intent or pragmatic inference.
 - Semantic parsing or grounded concepts.
 - A reasoning engine or world model.
+- Persistent storage for hypotheses, claims, and procedure specifications.
+- A calibrated interpretation confidence model.
 - Web browsing, source extraction, or factual verification.
 - Acquired executable skills.
 - Neural models or pretrained weights.
@@ -27,7 +34,7 @@ This document records the actual scope of the first repository scaffold.
 
 ## Verification
 
-The test suite is committed but has not been executed by the GitHub connector. Run locally with:
+The test suite is committed but has not been executed in the authoring environment. Run locally with:
 
     python -m pip install -e ".[dev]"
     pytest
