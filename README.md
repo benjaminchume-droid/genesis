@@ -35,7 +35,7 @@ The central research challenge is to discover whether general-purpose non-neural
 
 **Stage:** foundational architecture and research scaffold.
 
-The initial implementation is intentionally modest: a local SQLite observation store, a Unicode-aware surface segmenter, repeated-sequence discovery with context counts, and typed records for hypotheses, claims, procedures, and evaluation splits. These are research instruments, not an intelligent conversational agent. Semantic interpretation, intent inference, grounded concepts, response planning, web acquisition, and capability composition remain research milestones.
+The initial implementation is intentionally modest: a local SQLite observation store, a SQLite evidence ledger for hypotheses and claims, a Unicode-aware surface segmenter, repeated-sequence discovery with context counts, bounded dialogue history, generic relation records, source-document provenance, and typed records for procedures and evaluation splits. These are research instruments, not an intelligent conversational agent. Semantic interpretation, intent inference, grounded concepts, response planning, web acquisition, and capability composition remain research milestones.
 
 ## Quick start
 
@@ -66,8 +66,11 @@ The CLI stores observations locally in `.genesis/genesis.sqlite3` unless `GENESI
 
 ## Repository map
 
-- `src/genesis/core/`: observation and persistence primitives.
+- `src/genesis/core/`: observation and evidence persistence primitives.
 - `src/genesis/linguistics/`: surface-level text processing and structural statistics.
+- `src/genesis/dialogue/`: bounded in-memory conversation history.
+- `src/genesis/representations/`: generic, evidence-linked relational records.
+- `src/genesis/acquisition/`: source-document provenance records.
 - `src/genesis/structures/`: candidate repeated-sequence discovery with observed contexts.
 - `src/genesis/interpretation/`: explicit, uncertain interpretation-hypothesis records.
 - `src/genesis/knowledge/`: provenance-aware claim records, unverified by default.
