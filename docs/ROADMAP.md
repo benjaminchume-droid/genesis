@@ -58,6 +58,33 @@ Exit criteria:
 - The system labels patterns as candidates rather than meanings.
 - The system is not credited with semantics from surface statistics alone.
 
+## Stage 2B: Experience induction and bounded execution
+Status: first persistent symbolic induction baseline and allowlisted task executor implemented; broader concept learning and autonomous planning remain incomplete.
+
+Implemented:
+- Persistent labelled experiences and induced rules in SQLite.
+- Generic lexical and ordered-adjacency feature induction, with support, precision, evidence IDs and counterexample IDs.
+- Rule-set revision after new labelled counterexamples.
+- Candidate outcome prediction with abstention when competing outcomes are close.
+- JSONL import and held-out evaluation command.
+- Persistent allowlisted executor for observation, surface discovery, learning import, prediction and installed-knowledge retrieval.
+- Per-step checkpoints, resumable plans, recorded outputs and failure state.
+- Local API and interface controls for explicit labelled feedback, rule induction, prediction and task execution.
+- Tests for persistence, counterexamples, induction, execution and API wiring.
+
+Remaining:
+- Independently authored grouped evaluation datasets and robust leakage prevention.
+- Concept induction from multiple evidence types, contradiction resolution, and transfer tests beyond lexical feature associations.
+- Natural-language objective-to-plan synthesis with uncertainty and clarification.
+- Cancellation, execution budgets, timeouts and stronger action schemas.
+- Research adapters with provenance and verification.
+
+Exit criteria:
+- Held-out results beat declared baselines on pre-registered tasks.
+- Rule revisions preserve history and can be reproduced.
+- Every executable capability is allowlisted, bounded, observable and tested.
+- No rule or prediction is presented as semantic understanding without independent evidence.
+
 ## Stage 3: Linguistic interpretation research
 Deliverables:
 - Candidate parse structures.
