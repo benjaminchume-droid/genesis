@@ -107,6 +107,8 @@ class ExperienceLearningEngine:
         item = Experience(experience_id or str(uuid4()), text, outcome.strip(), source.strip(), datetime.now(timezone.utc).isoformat())
         with self._connect() as db:
             db.execute("INSERT INTO experiences VALUES(?,?,?,?,?)", (item.experience_id,item.text,item.outcome,item.source,item.observed_at))
+        if relearn:
+            self.learn()
         return item
 
     def import_jsonl(self, path: str | Path, *, text_field: str = "text", outcome_field: str = "label") -> dict:
