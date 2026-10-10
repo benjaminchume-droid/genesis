@@ -2,7 +2,7 @@
 from __future__ import annotations
 import argparse, json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, unquote, parse_qs
 from importlib.resources import files
 from genesis.runtime.service import GenesisRuntime
 
@@ -36,6 +36,10 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(200); self.send_header("Content-Type","text/html; charset=utf-8"); self.send_header("Content-Length",str(len(body))); self.send_header("Cache-Control","no-store"); self.send_header("Content-Security-Policy","default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:"); self.send_header("X-Content-Type-Options","nosniff"); self.end_headers(); self.wfile.write(body); return
         if path=="/api/status": return self._json(200,self.server.runtime.status())
         if path=="/api/tasks": return self._json(200,self.server.runtime.tasks.list(200))
+        if path=="/api/knowledge":
+            query=parse_qs(urlparse(self.path).query).get("q",[""])[0]
+            try: return self._json(200,self.server.runtime.models.search_knowledge(query))
+            except ValueError as exc: return self._json(400,{"error":str(exc)})
         return self._json(404,{"error":"not found"})
     def do_POST(self):
         if not self._safe_origin(): return self._json(403,{"error":"loopback origin required"})
