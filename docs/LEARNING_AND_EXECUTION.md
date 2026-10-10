@@ -86,3 +86,12 @@ The `learn-evaluate-grouped` CLI command uses `src/genesis/learning/evaluation.p
 The executor validates each action against a registered schema, rejects unknown arguments, bounds the number of steps, checks the total deadline between actions, and runs each action in a disposable worker process with a hard per-action timeout. Cancellation is polled while the worker runs and terminates that worker. A timeout or cancellation cannot roll back side effects already committed by an action. See `docs/CONCEPTS_AND_EVALUATION.md` for CLI examples and acceptance gates.
 
 The relation-frame learner now induces candidate extraction templates from explicitly annotated examples and can propose triples for new entity names within those frames. Each candidate retains training evidence IDs and must be reviewed before being asserted into the concept graph. Still incomplete: robust open-domain relation extraction, negation/coreference/context handling, autonomous natural-language planning, independent representative benchmark results, and cross-platform stress testing of isolated workers. These are not represented as implemented.
+
+
+## Web research and grounded response
+
+Genesis now exposes `WebResearch` through `runtime.research` and `GroundedResponseEngine` through `runtime.responses`. Read `docs/WEB_RESEARCH.md` and `docs/GROUNDED_RESPONSES.md` for the complete CLI/API surface and security boundaries.
+
+The learning intake path is explicit: search -> fetch -> persist source text and hash -> ingest as a sourced observation -> propose unverified sentence/relation candidates -> human review. It does not automatically convert arbitrary web text into supervised labels or asserted facts.
+
+The response path can search the web, fetch source pages, optionally ingest them, and assemble a short answer from lexically relevant source sentences. It returns citations and abstains when no evidence matches. This is an extractive baseline, not unrestricted semantic language generation. Live internet provider behavior has not been claimed from mocked unit tests; the current CI validates deterministic parsing, persistence, API, safety policy and mocked provider flows.
