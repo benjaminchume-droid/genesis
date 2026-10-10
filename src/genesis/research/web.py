@@ -347,7 +347,13 @@ class WebResearch:
                                 (status, note.strip(), _now(), claim_id))
             if cursor.rowcount == 0:
                 raise KeyError(f"unknown candidate claim: {claim_id}")
-        return next(item for item in self.list_claims("all", 500) if item["claim_id"] == claim_id)
+        with self._connect() as db:
+            row = db.execute("""SELECT c.*, (SELECT COUNT(DISTINCT other.source_url)
+                FROM candidate_claims other WHERE other.normalized_statement=c.normalized_statement) AS supporting_sources
+                FROM candidate_claims c WHERE c.claim_id=?""", (claim_id,)).fetchone()
+        if row is None:
+            raise KeyError(f"unknown candidate claim: {claim_id}")
+        return dict(row)
 
     def status(self) -> dict:
         with self._connect() as db:
