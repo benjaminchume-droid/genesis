@@ -23,7 +23,11 @@ class ModelStore:
         if not self.active_file.exists():
             return None
         pointer = json.loads(self.active_file.read_text(encoding="utf-8"))
-        version = pointer.get("version")\n        if not isinstance(version, str) or not version or any(c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-+" for c in version):\n            raise ValueError("unsafe active version pointer")\n        target = self.versions / version
+        version = pointer.get("version")
+        allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-+"
+        if not isinstance(version, str) or not version or any(c not in allowed for c in version):
+            raise ValueError("unsafe active version pointer")
+        target = self.versions / version
         if not target.is_dir():
             raise ValueError("active version pointer refers to a missing package")
         return {"version": pointer["version"], "path": str(target), "manifest": json.loads((target / "manifest.json").read_text(encoding="utf-8"))}
