@@ -33,8 +33,18 @@ def _template(text: str, subject: str, object_value: str) -> str:
     text = _text(text, "text")
     subject = _text(subject, "subject", 1000)
     object_value = _text(object_value, "object_value", 1000)
-    subject_matches = list(re.finditer(re.escape(subject), text, re.IGNORECASE))
-    object_matches = list(re.finditer(re.escape(object_value), text, re.IGNORECASE))
+    subject_pattern = re.escape(subject)
+    object_pattern = re.escape(object_value)
+    if subject[0].isalnum():
+        subject_pattern = r"(?<!\w)" + subject_pattern
+    if subject[-1].isalnum():
+        subject_pattern += r"(?!\w)"
+    if object_value[0].isalnum():
+        object_pattern = r"(?<!\w)" + object_pattern
+    if object_value[-1].isalnum():
+        object_pattern += r"(?!\w)"
+    subject_matches = list(re.finditer(subject_pattern, text, re.IGNORECASE))
+    object_matches = list(re.finditer(object_pattern, text, re.IGNORECASE))
     choices = []
     for s in subject_matches:
         for o in object_matches:
