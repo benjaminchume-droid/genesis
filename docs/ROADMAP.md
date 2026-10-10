@@ -86,6 +86,18 @@ Exit criteria:
 - No rule or prediction is presented as semantic understanding without independent evidence.
 
 ## Stage 3: Linguistic interpretation research
+Status: first inspectable non-neural surface-analysis primitive is implemented and attached to grounded-response output; full semantic parsing and context resolution remain incomplete.
+
+Implemented:
+- Clause segmentation with coordinating conjunction labels.
+- Broad speech-act and interrogative-dimension classification.
+- Explicit negation and modal-operator tracking.
+- Context-dependent pronoun/reference flags and traceable classification cues.
+- Tests for question type, negation, modality, conjunction composition, and reference uncertainty.
+- See `docs/LINGUISTIC_UNDERSTANDING.md`.
+
+Remaining: semantic-role and dependency structure, learned grammar induction, robust coreference, ellipsis, idiom, ambiguity competition, dialogue-state resolution, and held-out evaluation across diverse speakers and domains.
+
 Deliverables:
 - Candidate parse structures.
 - Competing interpretations with evidence and uncertainty.
@@ -122,6 +134,17 @@ Exit criteria:
 - Unsupported interpretations are surfaced rather than concealed.
 
 ## Stage 6: Knowledge acquisition and verification
+Status: keyless public web search, safe text-page retrieval, source provenance, candidate-claim review, and an MCP browser tool server are implemented as an initial acquisition surface. Provider reliability, adaptive multi-query research, independent-source analysis, and verification remain incomplete.
+
+Implemented:
+- A text-first browser with search, open/read, page inspection, link listing/following, and local visit history.
+- MCP stdio server (`genesis-mcp`) exposing browser and source-ingestion tools without requiring a paid search API key.
+- SSRF-aware URL policy, bounded page sizes/timeouts, no JavaScript execution, and untrusted-page-content guidance.
+- Bounded `research_topic` search/open/read loop and provenance-preserving save/ingest operations.
+- See `docs/MCP_BROWSER.md` and `docs/WEB_RESEARCH.md`.
+
+Remaining: query reformulation driven by measured retrieval gaps, provider health/backoff, source independence/reliability models, stronger contradiction detection, page rendering/JS-dependent sites, and evaluation on real research tasks.
+
 Deliverables:
 - Configurable retrieval adapters.
 - Source provenance and claim extraction.
