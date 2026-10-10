@@ -27,6 +27,13 @@ def parser():
     a=sub.add_parser("model-activate"); a.add_argument("version")
     sub.add_parser("model-list")
     a=sub.add_parser("knowledge-search"); a.add_argument("query"); a.add_argument("--limit",type=int,default=20)
+    a=sub.add_parser("learn-import"); a.add_argument("dataset")
+    a=sub.add_parser("learn-fit"); a.add_argument("--min-support",type=int,default=2); a.add_argument("--min-precision",type=float,default=0.75)
+    a=sub.add_parser("learn-predict"); a.add_argument("text"); a.add_argument("--min-margin",type=float,default=0.15)
+    sub.add_parser("learn-rules")
+    a=sub.add_parser("learn-evaluate"); a.add_argument("dataset"); a.add_argument("--min-margin",type=float,default=0.15)
+    a=sub.add_parser("task-run"); a.add_argument("task_id"); a.add_argument("--plan",required=True); a.add_argument("--no-resume",action="store_true")
+    sub.add_parser("executor-capabilities")
     return p
 
 def main(argv=None):
@@ -55,6 +62,22 @@ def main(argv=None):
     elif args.command=="model-activate": result=runtime.models.activate(args.version)
     elif args.command=="model-list": result={"active":runtime.models.active(),"versions":runtime.models.list_versions()}
     elif args.command=="knowledge-search": result=runtime.models.search_knowledge(args.query,args.limit)
+    elif args.command=="learn-import": result=runtime.learning.import_jsonl(args.dataset)
+    elif args.command=="learn-fit": result=runtime.learning.learn(min_support=args.min_support,min_precision=args.min_precision)
+    elif args.command=="learn-predict": result=runtime.learning.predict(args.text,min_margin=args.min_margin)
+    elif args.command=="learn-rules": result={"status":runtime.learning.status(),"rules":[r.__dict__ if hasattr(r,"__dict__") else {"rule_id":r.rule_id,"feature":r.feature,"outcome":r.outcome,"support":r.support,"counterexamples":r.counterexamples,"precision":r.precision,"evidence_ids":r.evidence_ids,"counterexample_ids":r.counterexample_ids} for r in runtime.learning.rules()]}
+    elif args.command=="learn-evaluate":
+        rows=[]
+        for number,line in enumerate(Path(args.dataset).read_text(encoding="utf-8").splitlines(),1):
+            if not line.strip(): continue
+            try:
+                row=json.loads(line); rows.append({"text":row["text"],"label":row["label"]})
+            except (json.JSONDecodeError,KeyError,TypeError) as exc: raise ValueError(f"invalid evaluation row {number}: {exc}") from exc
+        result=runtime.learning.evaluate(rows,min_margin=args.min_margin)
+    elif args.command=="task-run":
+        plan=json.loads(Path(args.plan).read_text(encoding="utf-8"))
+        result=runtime.executor.execute(args.task_id,plan,resume=not args.no_resume)
+    elif args.command=="executor-capabilities": result={"capabilities":runtime.executor.capabilities,"security":"Only registered actions are executable; plans cannot run arbitrary code."}
     else: return 2
     print(json.dumps(result,ensure_ascii=False,indent=2,default=str)); return 0
 
