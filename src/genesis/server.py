@@ -8,6 +8,7 @@ from importlib.resources import files
 from urllib.parse import parse_qs, unquote, urlparse
 
 from genesis.runtime.service import GenesisRuntime
+from genesis.cognition.model import interpret_goal, explainable_frame
 
 MAX_BODY = 1_000_000
 
@@ -100,6 +101,22 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, runtime.status())
         if path == "/api/tasks":
             return self._json(200, runtime.tasks.list(200))
+        if path == "/api/capabilities":
+            query = parse_qs(parsed.query)
+            try:
+                return self._json(200, {"status": runtime.capabilities.status(),
+                    "capabilities": runtime.capabilities.list(query=query.get("q", [""])[0],
+                        status=query.get("status", [None])[0],
+                        limit=int(query.get("limit", ["100"])[0]))})
+            except ValueError as exc:
+                return self._json(400, {"error": str(exc)})
+        if path == "/api/cognition/status":
+            return self._json(200, {"goal_interpretation": "bounded surface cues",
+                "meaning_representation": "inspectable JSON intermediate representation",
+                "world_model": runtime.concepts.status(),
+                "capabilities": runtime.capabilities.status(),
+                "limits": ["No general semantic parser or pretrained language model is bundled.",
+                    "Goal frames are hypotheses and must be checked before execution."]})
         if path == "/api/learning/status":
             return self._json(200, runtime.learning.status())
         if path == "/api/learning/rules":
@@ -153,6 +170,26 @@ class Handler(BaseHTTPRequestHandler):
             body = self._body()
             path = urlparse(self.path).path
             runtime = self.server.runtime
+            if path == "/api/cognition/interpret":
+                if not isinstance(body.get("text"), str):
+                    raise ValueError("text must be a string")
+                frame = interpret_goal(body["text"])
+                return self._json(200, {"goal": explainable_frame(frame),
+                    "linguistic_analysis": __import__("genesis.dialogue.understanding", fromlist=["understand"]).understand(body["text"])})
+            if path == "/api/capabilities":
+                if body.get("operation") == "register":
+                    return self._json(201, runtime.capabilities.register(
+                        body.get("name"), body.get("purpose"),
+                        inputs=body.get("inputs", []), outputs=body.get("outputs", []),
+                        dependencies=body.get("dependencies", []),
+                        implementation_ref=body.get("implementation_ref", "unimplemented"),
+                        constraints=body.get("constraints", []), failure_modes=body.get("failure_modes", [])))
+                if body.get("operation") == "evaluate":
+                    return self._json(200, runtime.capabilities.record_evaluation(
+                        body.get("capability_id"), passed=body.get("passed"),
+                        dataset_id=body.get("dataset_id"), summary=body.get("summary"),
+                        metrics=body.get("metrics", {}), regressions=body.get("regressions", [])))
+                raise ValueError("operation must be register or evaluate")
             if path == "/api/dialogue/respond":
                 if not isinstance(body.get("query"), str):
                     raise ValueError("query must be a string")
