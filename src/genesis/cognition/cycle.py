@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 from genesis.cognition.model import interpret_goal, explainable_frame
+from genesis.dialogue.realization import realize_response
 from genesis.dialogue.understanding import understand
 
 
@@ -74,6 +75,7 @@ class CognitiveCycle:
                 "Retrieved assertions are candidates ranked by epistemic status and confidence; stored claims are not automatically true."
             ),
         }
+        realized_response = realize_response(plan)
         return {
             "observation": observation,
             "linguistic_analysis": linguistic,
@@ -83,6 +85,7 @@ class CognitiveCycle:
                 "memory_id": item["memory_id"], "source": item["source"]} for item in recalled_memories],
             "known_conflicts": conflicts[:50],
             "response_plan": plan,
+            "realized_response": realized_response,
             "research": research_result,
             "next_step": (
                 "Investigate the evidence gap with the bounded browser workflow."
