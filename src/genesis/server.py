@@ -9,6 +9,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from genesis.runtime.service import GenesisRuntime
 from genesis.cognition.model import interpret_goal, explainable_frame
+from genesis.dialogue.realization import realize_response
 
 MAX_BODY = 1_000_000
 
@@ -191,6 +192,9 @@ class Handler(BaseHTTPRequestHandler):
             body = self._body()
             path = urlparse(self.path).path
             runtime = self.server.runtime
+            if path == "/api/cognition/realize":
+                return self._json(200, realize_response(body.get("plan", {}),
+                    maximum_propositions=body.get("maximum_propositions", 12)))
             if path == "/api/cognition/cycle":
                 return self._json(200, runtime.cognitive_cycle.run(
                     body.get("text"), research=body.get("research", False),
