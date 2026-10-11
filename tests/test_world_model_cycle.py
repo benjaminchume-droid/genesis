@@ -44,7 +44,7 @@ def test_cognitive_cycle_returns_inspectable_frame_and_evidence_gap(tmp_path):
     assert runtime.status()["world_model"]["world"]["assertions"] == 0
 
 
-def test_world_api_accepts_claims_and_reports_conflicts():
+def test_world_api_accepts_claims_and_reports_conflicts(tmp_path):
     import json
     from threading import Thread
     from http.server import ThreadingHTTPServer
@@ -53,7 +53,7 @@ def test_world_api_accepts_claims_and_reports_conflicts():
     from genesis.runtime.service import GenesisRuntime
 
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    server.runtime = GenesisRuntime()
+    server.runtime = GenesisRuntime(tmp_path)
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -72,3 +72,23 @@ def test_world_api_accepts_claims_and_reports_conflicts():
         server.shutdown()
         server.server_close()
         thread.join(timeout=2)
+
+
+
+def test_persistent_memory_retrieves_experience_not_saved_answer(tmp_path):
+    from genesis.memory.store import PersistentMemory
+
+    memory = PersistentMemory(tmp_path / "memory.sqlite3")
+    episode = memory.record_episode("The user asked how to make a website",
+        context={"kind": "conversation"}, source="user")
+    memory.put("procedural", "website-build-workflow",
+        "Inspect requirements, decompose pages and components, implement, test, and verify.",
+        source="verified-procedure", importance=0.9, confidence=0.8)
+    results = memory.retrieve("website components implement", limit=5)
+    assert results
+    assert any(item["kind"] == "procedural" for item in results)
+    assert episode["kind"] == "episodic"
+    assert memory.status()["by_kind"]["episodic"] == 1
+    assert memory.consolidate(minimum_accesses=1)["promoted"] == 0
+    reopened = PersistentMemory(tmp_path / "memory.sqlite3")
+    assert reopened.status()["total"] == 2
