@@ -47,10 +47,15 @@ def test_cognitive_cycle_returns_inspectable_frame_and_evidence_gap(tmp_path):
 def test_world_api_accepts_claims_and_reports_conflicts():
     import json
     from threading import Thread
+    from http.server import ThreadingHTTPServer
     from urllib.request import Request, urlopen
-    from genesis.server import serve
+    from genesis.server import Handler
+    from genesis.runtime.service import GenesisRuntime
 
-    server = serve(host="127.0.0.1", port=0, home=None, background=True)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server.runtime = GenesisRuntime()
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
     try:
         base = f"http://127.0.0.1:{server.server_port}"
         payload = json.dumps({"subject":"tea","predicate":"temperature","value":"hot",
@@ -66,3 +71,4 @@ def test_world_api_accepts_claims_and_reports_conflicts():
     finally:
         server.shutdown()
         server.server_close()
+        thread.join(timeout=2)
