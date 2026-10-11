@@ -46,7 +46,9 @@ class CognitiveCycle:
         for token in tokens:
             if len(token) < 3:
                 continue
-            for row in self.runtime.world.query(value=token, limit=10):
+            for row in (self.runtime.world.query(value=token, limit=10)
+                        + self.runtime.world.query(subject=token, limit=10)
+                        + self.runtime.world.query(predicate=token, limit=10)):
                 if row["assertion_id"] not in seen:
                     candidates.append(row)
                     seen.add(row["assertion_id"])
