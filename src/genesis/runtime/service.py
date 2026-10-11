@@ -18,6 +18,7 @@ from genesis.dialogue.response import GroundedResponseEngine
 from genesis.research.web import WebResearch
 from genesis.research.browser import GenesisBrowser
 from genesis.research.controller import AdaptiveResearchController
+from genesis.cognition.capabilities import CapabilityRegistry
 
 
 class GenesisRuntime:
@@ -30,6 +31,7 @@ class GenesisRuntime:
         self.learning = ExperienceLearningEngine(self.home / "learning.sqlite3")
         self.concepts = ConceptRelationGraph(self.home / "concepts.sqlite3")
         self.relation_learner = RelationFrameLearner(self.home / "relation-learning.sqlite3")
+        self.capabilities = CapabilityRegistry(self.home / "capabilities.sqlite3")
         self.research = WebResearch(self.home / "research.sqlite3", runtime=self)
         self.browser = GenesisBrowser(self.research, self.home / "browser.sqlite3")
         self.research_controller = AdaptiveResearchController(self.browser)
@@ -45,7 +47,7 @@ class GenesisRuntime:
         active = self.models.active()
         return {"home": str(self.home), "observation_count": len(list(self.observations.all_texts())),
                 "task_count": len(self.tasks.list()), "learning": self.learning.status(),
-                "concept_graph": self.concepts.status(), "relation_learning": self.relation_learner.status(), "research": self.research.status(),
+                "concept_graph": self.concepts.status(), "relation_learning": self.relation_learner.status(),\n                "capability_registry": self.capabilities.status(), "research": self.research.status(),
                 "active_model": active["version"] if active else None,
                 "installed_models": self.models.list_versions(),
                 "runtime_note": "Local records persist on this device. No contribution upload or network sync is performed by this runtime."}
