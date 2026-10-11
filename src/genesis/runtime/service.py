@@ -21,6 +21,7 @@ from genesis.research.controller import AdaptiveResearchController
 from genesis.cognition.capabilities import CapabilityRegistry
 from genesis.world.model import WorldModel
 from genesis.world.inference import WorldReasoner
+from genesis.cognition.cycle import CognitiveCycle
 
 
 class GenesisRuntime:
@@ -36,6 +37,7 @@ class GenesisRuntime:
         self.capabilities = CapabilityRegistry(self.home / "capabilities.sqlite3")
         self.world = WorldModel(self.home / "world.sqlite3")
         self.world_reasoner = WorldReasoner(self.world)
+        self.cognitive_cycle = CognitiveCycle(self)
         self.research = WebResearch(self.home / "research.sqlite3", runtime=self)
         self.browser = GenesisBrowser(self.research, self.home / "browser.sqlite3")
         self.research_controller = AdaptiveResearchController(self.browser)
