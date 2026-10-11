@@ -58,6 +58,14 @@ This is not vector-semantic retrieval, human-like memory, or automatic abstracti
 
 It does not just return the last answer associated with a matching question. However, the language parser remains bounded and the returned plan is not yet a general fluent language generator.
 
+### Compositional response realization
+
+`genesis.dialogue.realization` can realize an explicit subject/predicate/object frame into new surface wording, preserve polarity and limited modality, and carry evidence identifiers into the response. This avoids looking up a stored answer string for supported structured frames. It does not yet paraphrase arbitrary prose fluently; when no semantic frame exists, it preserves source text rather than pretending to understand it.
+
+### Dependency-aware planning primitives
+
+`genesis.cognition.planning.TaskPlan` validates a bounded dependency graph, exposes ready steps, tracks attempts and results, retries within an explicit budget, and blocks dependent steps after permanent failure. Plan steps refer to registered capabilities; they are data and cannot contain arbitrary executable source. This is a planning substrate, not a complete natural-language goal-to-plan synthesizer.
+
 ### Reusable capability registry
 
 Capabilities are persisted with input/output contracts, dependencies, implementation references, constraints, failure modes and evaluation history. They remain candidates until a passing evaluation is recorded; a later failure demotes them. Registration does not turn metadata into executable code.
@@ -69,7 +77,7 @@ New routes:
 - `GET /api/world`, `GET /api/world/conflicts`
 - `POST /api/world/assertions`, `POST /api/world/events`
 - `GET /api/memory?q=...`, `POST /api/memory`, `POST /api/memory/consolidate`
-- `POST /api/cognition/cycle`
+- `POST /api/cognition/cycle`, `POST /api/cognition/realize`
 - `GET /api/capabilities`, `POST /api/capabilities`
 
 The API retains the existing loopback-only server boundary. Do not expose this server directly to the public internet.
