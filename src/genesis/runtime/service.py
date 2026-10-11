@@ -53,7 +53,8 @@ class GenesisRuntime:
         active = self.models.active()
         return {"home": str(self.home), "observation_count": len(list(self.observations.all_texts())),
                 "task_count": len(self.tasks.list()), "learning": self.learning.status(),
-                "concept_graph": self.concepts.status(), "relation_learning": self.relation_learner.status(),\n                "capability_registry": self.capabilities.status(), "research": self.research.status(),
+                "concept_graph": self.concepts.status(), "relation_learning": self.relation_learner.status(),
+                "capability_registry": self.capabilities.status(), "research": self.research.status(),
                 "active_model": active["version"] if active else None,
                 "installed_models": self.models.list_versions(),
                 "runtime_note": "Local records persist on this device. No contribution upload or network sync is performed by this runtime."}
