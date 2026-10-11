@@ -110,6 +110,14 @@ class Handler(BaseHTTPRequestHandler):
                         limit=int(query.get("limit", ["100"])[0]))})
             except ValueError as exc:
                 return self._json(400, {"error": str(exc)})
+        if path == "/api/memory":
+            query = parse_qs(parsed.query)
+            try:
+                items = runtime.memory.retrieve(query.get("q", [""])[0],
+                    kinds=query.get("kind", None), limit=int(query.get("limit", ["10"])[0])) if query.get("q", [""])[0] else []
+                return self._json(200, {"status": runtime.memory.status(), "memories": items})
+            except ValueError as exc:
+                return self._json(400, {"error": str(exc)})
         if path == "/api/world":
             query = parse_qs(parsed.query)
             try:
@@ -187,6 +195,15 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(200, runtime.cognitive_cycle.run(
                     body.get("text"), research=body.get("research", False),
                     max_sources=body.get("max_sources", 5), max_rounds=body.get("max_rounds", 2)))
+            if path == "/api/memory":
+                return self._json(201, runtime.memory.put(
+                    body.get("kind", "semantic"), body.get("key"), body.get("content"),
+                    metadata=body.get("metadata", {}), source=body.get("source", "user"),
+                    importance=body.get("importance", 0.5), confidence=body.get("confidence", 0.5),
+                    replace=body.get("replace", True)))
+            if path == "/api/memory/consolidate":
+                return self._json(200, runtime.memory.consolidate(
+                    minimum_accesses=body.get("minimum_accesses", 2), limit=body.get("limit", 100)))
             if path == "/api/world/assertions":
                 return self._json(201, runtime.world.assert_claim(
                     body.get("subject"), body.get("predicate"), body.get("value"),
