@@ -124,7 +124,7 @@ class WorldModel:
         object_entity = self.upsert_entity(object_label) if object_is_entity else None
         now, assertion_id = _now(), str(uuid4())
         with self._connect() as db:
-            db.execute("INSERT INTO world_assertions VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
+            db.execute("INSERT INTO world_assertions VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", (
                 assertion_id, subject_entity["entity_id"], predicate, object_label,
                 object_entity["entity_id"] if object_entity else None, kind, float(confidence), status,
                 source, json.dumps(evidence or [], ensure_ascii=False),
