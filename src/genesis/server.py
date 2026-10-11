@@ -110,10 +110,23 @@ class Handler(BaseHTTPRequestHandler):
                         limit=int(query.get("limit", ["100"])[0]))})
             except ValueError as exc:
                 return self._json(400, {"error": str(exc)})
+        if path == "/api/world":
+            query = parse_qs(parsed.query)
+            try:
+                return self._json(200, {"status": runtime.world.status(),
+                    "assertions": runtime.world.query(subject=query.get("subject", [None])[0],
+                        predicate=query.get("predicate", [None])[0], value=query.get("q", [None])[0],
+                        status=query.get("status", [None])[0], limit=int(query.get("limit", ["50"])[0]))})
+            except ValueError as exc:
+                return self._json(400, {"error": str(exc)})
+        if path == "/api/world/conflicts":
+            query = parse_qs(parsed.query)
+            return self._json(200, runtime.world.contradictions(
+                subject=query.get("subject", [None])[0], predicate=query.get("predicate", [None])[0]))
         if path == "/api/cognition/status":
             return self._json(200, {"goal_interpretation": "bounded surface cues",
                 "meaning_representation": "inspectable JSON intermediate representation",
-                "world_model": runtime.concepts.status(),
+                "world_model": runtime.world_reasoner.status(),
                 "capabilities": runtime.capabilities.status(),
                 "limits": ["No general semantic parser or pretrained language model is bundled.",
                     "Goal frames are hypotheses and must be checked before execution."]})
@@ -170,6 +183,23 @@ class Handler(BaseHTTPRequestHandler):
             body = self._body()
             path = urlparse(self.path).path
             runtime = self.server.runtime
+            if path == "/api/cognition/cycle":
+                return self._json(200, runtime.cognitive_cycle.run(
+                    body.get("text"), research=body.get("research", False),
+                    max_sources=body.get("max_sources", 5), max_rounds=body.get("max_rounds", 2)))
+            if path == "/api/world/assertions":
+                return self._json(201, runtime.world.assert_claim(
+                    body.get("subject"), body.get("predicate"), body.get("value"),
+                    kind=body.get("kind", "property"), confidence=body.get("confidence", 0.5),
+                    status=body.get("status", "hypothesis"), source=body.get("source", "user"),
+                    evidence=body.get("evidence", []), context=body.get("context", {}),
+                    object_is_entity=body.get("object_is_entity", False)))
+            if path == "/api/world/events":
+                return self._json(201, runtime.world.add_event(
+                    body.get("event_type"), participants=body.get("participants", []),
+                    before=body.get("before", {}), after=body.get("after", {}),
+                    source=body.get("source", "observation"), confidence=body.get("confidence", 0.5),
+                    status=body.get("status", "hypothesis")))
             if path == "/api/cognition/interpret":
                 if not isinstance(body.get("text"), str):
                     raise ValueError("text must be a string")
