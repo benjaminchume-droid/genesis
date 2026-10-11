@@ -73,3 +73,28 @@ def test_mcp_concept_relation_tools_expose_graph(tmp_path):
     assert result
     composed = server.call_tool("compose_relations", {"start": "oak", "target": "tree"})
     assert composed
+
+
+
+def test_mcp_exposes_world_memory_cognitive_cycle_and_realization(tmp_path):
+    server = GenesisMCPServer(str(tmp_path / "home"))
+    names = {tool["name"] for tool in server.tools()}
+    assert {"run_cognitive_cycle", "search_world_model", "assert_world_claim",
+            "retrieve_memory", "realize_propositions"} <= names
+
+    claim = server.call_tool("assert_world_claim", {
+        "subject": "tea", "predicate": "temperature", "value": "hot",
+        "status": "supported", "source": "test", "confidence": 0.9,
+    })
+    assert claim["status"] == "supported"
+    result = server.call_tool("run_cognitive_cycle", {"text": "What is the temperature of tea?"})
+    assert "goal_frame" in result
+    assert "response_plan" in result
+    assert result["retrieved_world_assertions"]
+    realized = server.call_tool("realize_propositions", {"plan": {
+        "intent": "answer", "propositions": [{
+            "subject": "tea", "predicate": "has", "object": "a high temperature",
+            "evidence_id": claim["assertion_id"],
+        }], "uncertainty": "One supported assertion."
+    }})
+    assert realized["evidence_ids"] == [claim["assertion_id"]]
