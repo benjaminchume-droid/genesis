@@ -14,7 +14,7 @@ def test_world_model_persists_provenance_and_reports_conflicts(tmp_path):
     assert len(conflicts) == 1
     assert {conflicts[0]["value_a"], conflicts[0]["value_b"]} == {"liquid", "solid"}
     reopened = type(world)(db)
-    assert reopened.status()["assertions"] == 0  # separate database remains isolated
+    assert reopened.status()["assertions"] == 2  # same database reopens with persisted assertions
     same = type(world)(tmp_path / "world.sqlite3")
     assert same.status()["assertions"] == 2
 
