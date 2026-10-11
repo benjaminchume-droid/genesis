@@ -26,6 +26,8 @@ class CognitiveCycle:
             raise ValueError("research must be boolean")
 
         observation = self.runtime.observe(utterance, source="dialogue")
+        self.runtime.memory.record_episode(utterance, context={"source": "dialogue"}, source="user", importance=0.35)
+        recalled_memories = self.runtime.memory.retrieve(utterance, kinds=["episodic", "semantic", "procedural"], limit=10)
         linguistic = understand(utterance)
         goal = interpret_goal(utterance, linguistic)
         clauses = linguistic.get("clauses", []) if isinstance(linguistic, dict) else []
@@ -77,6 +79,8 @@ class CognitiveCycle:
             "linguistic_analysis": linguistic,
             "goal_frame": explainable_frame(goal),
             "retrieved_world_assertions": candidates[:20],
+            "recalled_memories": [{"kind": item["kind"], "content": item["content"], "score": item["score"],
+                "memory_id": item["memory_id"], "source": item["source"]} for item in recalled_memories],
             "known_conflicts": conflicts[:50],
             "response_plan": plan,
             "research": research_result,
