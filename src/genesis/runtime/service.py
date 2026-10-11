@@ -22,6 +22,7 @@ from genesis.cognition.capabilities import CapabilityRegistry
 from genesis.world.model import WorldModel
 from genesis.world.inference import WorldReasoner
 from genesis.cognition.cycle import CognitiveCycle
+from genesis.memory.store import PersistentMemory
 
 
 class GenesisRuntime:
@@ -35,6 +36,7 @@ class GenesisRuntime:
         self.concepts = ConceptRelationGraph(self.home / "concepts.sqlite3")
         self.relation_learner = RelationFrameLearner(self.home / "relation-learning.sqlite3")
         self.capabilities = CapabilityRegistry(self.home / "capabilities.sqlite3")
+        self.memory = PersistentMemory(self.home / "memory.sqlite3")
         self.world = WorldModel(self.home / "world.sqlite3")
         self.world_reasoner = WorldReasoner(self.world)
         self.cognitive_cycle = CognitiveCycle(self)
